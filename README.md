@@ -28,7 +28,7 @@ Every digital signage product needs the same underlying capabilities: device com
 
 TomorrowOS brings those capabilities into one open-source foundation, with a server-side SDK and on-device runtime designed to work across supported environments.
 
-You build the product, workflows and customer experience. TomorrowOS provides the shared infrastructure underneath.
+You build the product, workflows and customer experience while TomorrowOS provides and improves the shared infrastructure underneath.
 
 **You own what you build.** Apache 2.0, no seat licences, no revenue share, no requirement to open-source your own CMS.
 
