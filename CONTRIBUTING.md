@@ -2,94 +2,136 @@
 
 Thanks for helping build TomorrowOS.
 
-TomorrowOS is an open source unified API layer for digital signage operating systems. The project needs input from people who understand how signage behaves in the real world: developers, integrators, CMS vendors, hardware specialists and end users.
+TomorrowOS is an open-source SDK, server and on-device runtime for building digital signage software across supported screen platforms.
+
+The project benefits from people who understand how signage behaves in the real world: developers, integrators, CMS vendors, hardware specialists, operators and platform experts.
 
 ## Ways to contribute
 
 You can contribute by:
 
-- Improving the unified API
-- Adding OS capability mappings
-- Reporting model or firmware-specific behaviour
-- Adding certification test cases
+- Improving the SDK, runtime or server
+- Adding or improving platform adapters
+- Documenting model and firmware-specific behaviour
+- Adding compatibility and certification test cases
 - Improving documentation and examples
-- Building connectors for signage operating systems
-- Reporting playback, packaging, sync or device-control gaps
+- Building integrations and developer tools
+- Reporting playback, packaging, synchronisation or device-control issues
+- Sharing reproducible platform quirks and fallback behaviour
 
-## Before opening a pull request
+Not every contribution needs to be code. Clear testing notes, hardware findings and documentation improvements are valuable.
 
-Please:
+## Before you begin
 
-1. Search existing issues and discussions first
-2. Keep changes focused
-3. Explain the problem clearly
-4. Include test notes where possible
-5. Update documentation if the public API changes
-6. Do not include secrets, private keys, customer data or proprietary SDK material
+For small fixes, documentation updates and clearly scoped improvements, you can open a pull request directly.
 
-## Capability contributions
+For larger changes, new platform support or changes to the public API, please open a GitHub Discussion or Issue first so the approach can be agreed before significant work begins.
 
-Capability mapping is one of the most important parts of TomorrowOS.
+Before submitting a contribution:
 
-When adding or updating support for a feature, use one of these support levels:
+- Search existing Issues and Discussions
+- Keep the change focused
+- Explain the problem being solved
+- Include testing notes where possible
+- Update documentation when behaviour or the public API changes
+- Do not include secrets, private keys, customer data or proprietary SDK material
+
+## Platform and capability contributions
+
+Real-world platform knowledge is one of the most valuable parts of TomorrowOS.
+
+When documenting a capability, use one of the following core statuses:
 
 | Status | Meaning |
 | --- | --- |
-| `supported` | Works through the standard TomorrowOS API |
-| `unsupported` | Not available on this OS/device |
-| `partial` | Works, but with known limits |
-| `model-dependent` | Depends on the exact hardware model |
-| `firmware-dependent` | Depends on firmware or OS version |
-| `requires-bridge` | Requires an agent, native bridge or platform-specific layer |
-| `unsafe` | Possible, but not recommended |
-| `unknown` | Not yet tested |
+| `supported` | Works through the standard TomorrowOS interface |
+| `partial` | Works with known limitations |
+| `unsupported` | Not available on the tested platform |
+| `unknown` | Not yet tested or confirmed |
+
+Record platform conditions separately where relevant:
+
+- Hardware model
+- Firmware or operating-system version
+- Browser engine version
+- Required native bridge or adapter
+- Known safety or reliability concerns
+- Fallback behaviour
+
+This keeps capability status simple while preserving the detail needed for reliable deployments.
 
 ## Evidence matters
 
-If you mark a feature as supported, please include as much detail as possible:
+Capability claims should include as much supporting information as possible:
 
-- OS name
+- Platform and OS version
 - Device model
 - Firmware version
-- Browser engine version, if relevant
+- Browser engine version, where relevant
 - Test method
+- Expected result
+- Actual result
 - Known limitations
 - Fallback behaviour
+- Logs, screenshots or sample media where useful
 
 Example:
 
 ```json
 {
   "feature": "playback.video.h264",
-  "os": "tizen",
-  "status": "firmware-dependent",
+  "platform": "tizen",
+  "status": "partial",
   "testedModels": ["QM43C"],
-  "testedFirmware": ["Tizen 7.0"],
-  "notes": "Works in tested conditions. Codec and playback behaviour should still be validated per model.",
-  "fallback": "Use fallback image if video preflight fails."
+  "testedVersions": ["Tizen 7.0"],
+  "limitations": [
+    "Codec and playback behaviour may vary by model and firmware."
+  ],
+  "fallback": "Display the configured fallback image if video validation or playback fails."
 }
 ```
 
+Treat this example as guidance unless the repository defines a formal capability schema elsewhere.
+
 ## Pull request checklist
 
-Before submitting, please check:
+Before submitting a pull request, confirm that:
 
-- [ ] The change is clear and scoped
+- [ ] The change is clear and focused
+- [ ] The problem and proposed solution are explained
+- [ ] Relevant tests have been added or updated
 - [ ] Documentation has been updated where needed
 - [ ] Capability claims include evidence where possible
-- [ ] No secrets or customer data are included
-- [ ] The change aligns with the goal of a clean unified API
+- [ ] No secrets, customer data or proprietary material are included
+- [ ] The change preserves a clear and consistent developer experience
+- [ ] The change aligns with the current project direction
 
-## Project direction
+## Development principles
 
 TomorrowOS should remain:
 
-- Simple for developers
-- Honest about OS limitations
-- Safe for device control
-- Useful for real signage deployments
+- Simple for developers to understand and adopt
+- Honest about platform and hardware limitations
+- Safe and predictable for device control
+- Reliable in real-world signage environments
+- Useful across different products and deployment models
 - Open enough for the industry to build on
+- Stable at the core while allowing the ecosystem to expand
 
-## Contribution license
+The community contributes. Maintainers protect the quality, stability and direction of the core.
 
-By contributing, you agree that your contribution may be released under the project license.
+## Reporting security issues
+
+Do not report security vulnerabilities through a public Issue.
+
+Follow the process described in [SECURITY.md](./SECURITY.md).
+
+## Community standards
+
+All contributors must follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
+
+Project decision-making and maintainer responsibilities are described in [GOVERNANCE.md](./GOVERNANCE.md).
+
+## Contribution licence
+
+By contributing to TomorrowOS, you agree that your contribution may be released under the project's Apache License 2.0.
