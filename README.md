@@ -70,7 +70,7 @@ await tos.playlists.assign(device.id, {
 tos.events.on('playback.started', (e) => console.log(e.deviceId, e.itemId))
 ```
 
-This gives you a working digital signage deployment. Everything after this — scheduling, policies, multi-tenancy — builds on the same three primitives: **devices, content, events**.
+This gives you a working digital signage deployment. Everything after this ie. scheduling, policies, multi-tenancy — builds on the same three primitives: **devices, content, events**.
 
 → [Full quickstart](https://tomorrowos.org/quickstart) · [API reference](https://docs.tomorrowos.org)
 
@@ -166,7 +166,7 @@ Before 1.0, APIs may change and platform support will continue to expand. Read t
 
 TomorrowOS is available under the [Apache License 2.0](./LICENSE).
 
-You may build commercial products on it, modify the source, self-host it, and keep your own application entirely proprietary — subject to the licence terms.
+You may build commercial products on it, modify the source, self-host it, and keep your own application entirely proprietary, subject to the licence terms.
 
 The TomorrowOS name, logo, and trademarks are **not** licensed under Apache 2.0. See [TRADEMARK.md](./TRADEMARK.md) and [NOTICE](./NOTICE).
 
