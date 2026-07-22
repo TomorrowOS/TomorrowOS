@@ -1,5 +1,3 @@
-<p align="center">
-  <img src="./assets/tomorrowos-mark.svg" alt="TomorrowOS" width="72" />
 </p>
 
 <h1 align="center">TomorrowOS</h1>
