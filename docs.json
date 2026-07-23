@@ -1,0 +1,144 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "TomorrowOS",
+  "description": "The open-source foundation for digital signage software. Build CMS players, widgets, and device integrations across Tizen, webOS, BrightSign, and Android.",
+  "colors": {
+    "primary": "#BD4E32",
+    "light": "#BD4E32",
+    "dark": "#C45A3A"
+  },
+  "font": {
+    "headings": {
+      "family": "Instrument Sans"
+    },
+    "body": {
+      "family": "Instrument Sans"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting started",
+            "icon": "rocket",
+            "pages": [
+              "index",
+              "docs/README",
+              "docs/guides/beginners-guide",
+              "docs/guides/developer-guide"
+            ]
+          },
+          {
+            "group": "API",
+            "icon": "code",
+            "pages": [
+              "docs/api/overview",
+              "docs/capabilities/capability-matrix"
+            ]
+          },
+          {
+            "group": "Guides",
+            "icon": "book-open",
+            "pages": [
+              "docs/guides/assets-and-atomic-activation",
+              "docs/guides/widget-zip-packages",
+              "docs/guides/black-gap-playback"
+            ]
+          },
+          {
+            "group": "Platforms",
+            "icon": "display",
+            "pages": [
+              "docs/os/tizen",
+              "docs/os/webos",
+              "docs/os/brightsign",
+              "docs/os/android"
+            ]
+          },
+          {
+            "group": "Testing",
+            "icon": "vial",
+            "pages": [
+              "docs/testing/certification"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Project",
+        "groups": [
+          {
+            "group": "Roadmap & releases",
+            "icon": "map",
+            "pages": [
+              "ROADMAP",
+              "CHANGELOG"
+            ]
+          },
+          {
+            "group": "Community",
+            "icon": "users",
+            "pages": [
+              "CONTRIBUTING",
+              "SUPPORT",
+              "CODE_OF_CONDUCT",
+              "GOVERNANCE"
+            ]
+          },
+          {
+            "group": "Legal & security",
+            "icon": "shield",
+            "pages": [
+              "SECURITY",
+              "DISCLAIMER",
+              "TRADEMARK"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Website",
+        "href": "https://tomorrowos.org"
+      },
+      {
+        "label": "GitHub",
+        "href": "https://github.com/tomorrowos/tomorrowos"
+      },
+      {
+        "label": "npm",
+        "href": "https://www.npmjs.com/package/@tomorrowos/sdk"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Quickstart",
+      "href": "/docs/guides/developer-guide"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/tomorrowos/tomorrowos",
+      "website": "https://tomorrowos.org"
+    }
+  },
+  "redirects": [
+    {
+      "source": "/docs",
+      "destination": "/docs/README"
+    },
+    {
+      "source": "/quickstart",
+      "destination": "/docs/guides/developer-guide"
+    }
+  ],
+  "seo": {
+    "indexing": "navigable"
+  }
+}
