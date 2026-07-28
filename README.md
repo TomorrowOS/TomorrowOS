@@ -113,8 +113,6 @@ Support is version-specific and only listed here once it's confirmed on real har
 | LG webOS | — | 🔜 Planned |
 | Android | — | 🔜 Planned |
 
-Review the [compatibility documentation](https://tomorrowos.org/docs/platforms) before any production deployment.
-
 ## What you can build
 
 TomorrowOS is unopinionated about your product as we are purely the foundation for your to build on.

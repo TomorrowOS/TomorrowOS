@@ -1,203 +1,132 @@
 # TomorrowOS Documentation
 
-TomorrowOS is an open source unified API layer for digital signage operating systems.
+TomorrowOS is an open-source foundation for digital signage software: a CMS server SDK (`@tomorrowos/sdk`) and on-device players that speak one command surface across supported platforms.
 
-This documentation explains how TomorrowOS works, what the unified API covers, how capability mapping should be handled, and how developers can build reliable signage apps, CMS players, widgets and device integrations across different platforms.
+This docs set describes **what exists today** — not a future wishlist. Start here, then follow the guides for your role.
 
 ## Documentation structure
 
-| Section | Purpose |
+| Section | Pages | Purpose |
+| --- | --- | --- |
+| Getting started | [Beginners guide](./guides/beginners-guide.md), [Developer guide](./guides/developer-guide.md) | Product overview, then SDK setup, pairing and publish |
+| API | [API overview](./api/overview.md), [Capability matrix](./capabilities/capability-matrix.md) | Shipped `device.*` commands and support tracking |
+| Guides | [Assets](./guides/assets-and-atomic-activation.md), [Widgets / ZIP](./guides/widget-zip-packages.md), [Black-gap playback](./guides/black-gap-playback.md) | Media publish, widgets, transition behaviour |
+| Platforms | [Tizen](./os/tizen.md), [BrightSign](./os/brightsign.md), [webOS](./os/webos.md), [Android](./os/android.md) | Install, setup, capabilities and known limits |
+| Testing | [Certification](./testing/certification.md) | How to prove support on real model + firmware |
+
+## What exists today
+
+| Piece | Status |
 | --- | --- |
-| Getting Started | Build your first TomorrowOS app or CMS player |
-| API Overview | Understand the main unified API areas |
-| Capability Matrix | Track what each OS, device and firmware version can safely support |
-| Playback | Handle images, videos, HTML, widgets, playlists and fallbacks |
-| Packages | Validate and run ZIP/widget content safely |
-| Transitions | Prevent black gaps between images, videos and widgets |
-| Synchronisation | Support multi-screen playback and video wall timing |
-| Device Control | Work with supported screen and device functions |
-| Telemetry | Report heartbeat, logs, errors, screenshots and health |
-| Proof | Capture proof-of-play and proof-of-display events |
-| Security | Keep device control, package handling and customer environments safe |
-| Certification | Test real OS, model and firmware support before marking features as supported |
+| `@tomorrowos/sdk` | Shipped — CMS server, pairing, playlists, media helpers, WebSocket commands |
+| Samsung Tizen player | Shipped — **Tizen 6.5+** |
+| BrightSign player | Shipped — series / firmware dependent (see BrightSign docs) |
+| LG webOS | Coming soon |
+| Android | Coming soon |
 
 ## Core concept
 
 Digital signage development is fragmented.
 
-A CMS player, menu board, widget, signage app or deployment tool may behave differently across:
+A CMS player, menu board, widget or deployment tool may behave differently across Samsung Tizen, BrightSign and other runtimes. Codecs, storage, screenshots, power control and widget behaviour all vary by model and firmware.
 
-- Samsung Tizen
-- LG webOS
-- BrightSign OS
-- Android
-- ChromeOS
-- Windows
-- Linux
-- Browser-based signage runtimes
+TomorrowOS standardises the **CMS ↔ player contract**:
 
-Each platform can have different support for:
+```txt
+Your CMS (@tomorrowos/sdk)  ←── WebSocket + HTTPS ──→  Player (Tizen / BrightSign)
+```
 
-- Media playback
-- Video codecs
-- Image formats
-- Browser engines
-- Local storage
-- ZIP packages
-- Widget rendering
-- Device APIs
-- Power control
-- Screenshots
-- Proof-of-play
-- Synchronisation
-- Offline behaviour
-- Recovery logic
-
-TomorrowOS exists to make this easier to build, test and trust.
+You own the CMS. Screens talk to **your** server. There is no required TomorrowOS cloud.
 
 ## What TomorrowOS gives developers
 
-TomorrowOS gives developers one clean API surface for common signage needs.
+Instead of rewriting platform logic everywhere, you can:
 
-Instead of writing platform-specific logic everywhere, developers can use TomorrowOS to:
-
-- Detect the device and operating system
-- Check what a screen can safely support
-- Play media with fallback behaviour
-- Validate content before activation
-- Prevent black gaps between content changes
-- Install and run widget packages safely
-- Control supported screen functions
-- Report telemetry and device health
-- Capture proof-of-play and proof-of-display
-- Test support before claiming compatibility
+- Pair devices and keep them online
+- Publish playlists through `device.content.setPolicy`
+- Check support with `device.info.getCapabilities` before calling hardware features
+- Capture screenshots, reboot and set on/off timers where supported
+- Cache media on the player for offline playback
+- Run widget `.zip` / `.wgt` items as playlist content
+- Reduce black gaps between images and videos inside the player
 
 ## Example API flow
 
 ```ts
-import { tomorrow } from "@tomorrowos/sdk"
+import { TomorrowOS } from "@tomorrowos/sdk"
 
-await tomorrow.ready()
+const tos = new TomorrowOS({ /* store, brand, ... */ })
+await tos.listen({ port: Number(process.env.PORT) || 3000 })
 
-const device = await tomorrow.device.info()
+const { deviceId } = await tos.pairing.verify("A4F2K1")
 
-const support = await tomorrow.capabilities.checkMany([
-  "playback.image.jpg",
-  "playback.video.h264",
-  "package.zip",
-  "display.power",
-  "proof.play"
-])
+const capsResult = await tos.device(deviceId).sendCommand(
+  "device.info.getCapabilities",
+  {}
+)
+const caps = capsResult.data.capabilities
 
-if (support["playback.video.h264"].status === "supported") {
-  await tomorrow.playback.play({
-    type: "video",
-    src: "/assets/promo.mp4",
-    fallback: "/assets/fallback.jpg",
-    transition: "black-frame-safe"
-  })
-} else {
-  await tomorrow.playback.play({
-    type: "image",
-    src: "/assets/fallback.jpg"
-  })
+const playlist = await tos.playlists.savePlaylist({
+  name: "Lobby",
+  items: [
+    { type: "image", url: "https://cdn.example.com/promo.jpg", durationMs: 8000 },
+    { type: "video", url: "https://cdn.example.com/loop.mp4" }
+  ]
+})
+
+if (caps["device.content.setPolicy"]?.supported) {
+  await tos.playlists.publishPlaylistsToDevice(deviceId, [playlist.id])
 }
 ```
 
+For the full command list, see [API overview](./api/overview.md).
+
 ## Capability-first development
 
-TomorrowOS should never assume every screen can do everything.
+Never assume every screen can do everything.
 
-Every feature should be checked against the capability layer before it is used.
-
-A capability may be:
+Always check `device.info.getCapabilities` before relying on reboot, screenshot, on/off timer or other hardware-facing commands.
 
 | Status | Meaning |
 | --- | --- |
-| `supported` | Works through the standard TomorrowOS API |
-| `unsupported` | Not available on this OS/device |
-| `partial` | Works, but with known limits |
-| `model-dependent` | Depends on the exact hardware model |
-| `firmware-dependent` | Depends on firmware or OS version |
-| `requires-bridge` | Requires an agent, native bridge or platform-specific layer |
-| `unsafe` | Possible, but not recommended |
-| `unknown` | Not yet tested |
+| `supported: true` | Works through the standard TomorrowOS command |
+| `supported: false` | Not available on this runtime / device |
+| firmware / model notes | Documented in platform pages and certification |
 
-This keeps TomorrowOS honest and useful in real deployments.
+Examples of known gates:
 
-## Real-world signage problems TomorrowOS should handle
+- Tizen screenshot needs firmware **1080+**
+- BrightSign Series 3 needs firmware **9.1.140+** for video; **4K H.264** is a hardware limit
 
-TomorrowOS should focus on the issues that cause actual signage failures, including:
+## Where to go next
 
-- Content not playing
-- Video codec mismatch
-- Image format mismatch
-- Browser engine limitations
-- Black screens between content changes
-- Failed widget loads
-- ZIP packages extracting incorrectly
-- Content activating before download is complete
-- Partial or corrupt asset downloads
-- Storage limits
-- Offline screens
-- Screens losing sync
-- Firmware-specific behaviour
-- Device APIs not being available
-- Remote commands failing silently
-- Proof-of-play not matching what was actually displayed
-- Screenshots not being supported on some platforms
-- Power control being model or firmware dependent
-
-## Public documentation goals
-
-The documentation should help four groups:
-
-### Developers
-
-People building CMS players, apps, widgets and integrations.
-
-They need clear APIs, examples, capability checks and test flows.
-
-### Integrators
-
-People deploying signage in the field.
-
-They need to know what works, what is supported, what is risky and what needs a fallback.
-
-### CMS vendors
-
-Companies that want their platform to run more consistently across different hardware and operating systems.
-
-They need connector guidance, packaging guidance and capability evidence.
-
-### End customers
-
-Brands and organisations running signage networks.
-
-They need confidence that the technology has been tested, documented and designed for real-world reliability.
+| If you want to… | Read |
+| --- | --- |
+| Understand the product | [Beginners guide](./guides/beginners-guide.md) |
+| Build or host a CMS | [Developer guide](./guides/developer-guide.md) |
+| Learn the command surface | [API overview](./api/overview.md) |
+| Deploy on Samsung | [Tizen](./os/tizen.md) |
+| Deploy on BrightSign | [BrightSign](./os/brightsign.md) |
+| Certify a model + firmware | [Certification](./testing/certification.md) |
 
 ## Documentation principles
 
-TomorrowOS documentation should be:
+TomorrowOS docs should be:
 
 - Clear
 - Practical
-- Honest
-- Developer-friendly
-- Evidence-based
-- Easy to scan
+- Honest about what is shipped vs coming soon
+- Capability-first
 - Useful for real deployments
 - Careful with security and device-control claims
 
 ## Project status
 
-TomorrowOS is in early development.
+TomorrowOS is under active development.
 
-The current documentation focus is:
+Current documentation focus:
 
-- Defining the unified API
-- Mapping OS capability differences
-- Creating safe content and package handling rules
-- Documenting black-gap and playback failure handling
-- Building certification tests
-- Preparing the first OS connector documentation
+- The shipped SDK + player command surface
+- Tizen and BrightSign install / setup / known limits
+- Assets, widgets and black-gap playback behaviour
+- Certification evidence before calling a feature supported
