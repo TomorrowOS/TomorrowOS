@@ -75,14 +75,14 @@
             "icon": "map",
             "pages": [
               "ROADMAP",
-              "CHANGELOG"
+              "docs/project/changelog"
             ]
           },
           {
             "group": "Community",
             "icon": "users",
             "pages": [
-              "CONTRIBUTING",
+              "docs/project/contributing",
               "SUPPORT",
               "CODE_OF_CONDUCT",
               "GOVERNANCE"
@@ -136,6 +136,22 @@
     {
       "source": "/quickstart",
       "destination": "/docs/guides/developer-guide"
+    },
+    {
+      "source": "/CHANGELOG",
+      "destination": "/docs/project/changelog"
+    },
+    {
+      "source": "/changelog",
+      "destination": "/docs/project/changelog"
+    },
+    {
+      "source": "/CONTRIBUTING",
+      "destination": "/docs/project/contributing"
+    },
+    {
+      "source": "/contributing",
+      "destination": "/docs/project/contributing"
     }
   ],
   "seo": {
