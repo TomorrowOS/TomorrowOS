@@ -75,14 +75,14 @@
             "icon": "map",
             "pages": [
               "ROADMAP",
-              "docs/project/changelog"
+              "CHANGELOG"
             ]
           },
           {
             "group": "Community",
             "icon": "users",
             "pages": [
-              "docs/project/contributing",
+              "CONTRIBUTING",
               "SUPPORT",
               "CODE_OF_CONDUCT",
               "GOVERNANCE"
@@ -138,20 +138,28 @@
       "destination": "/docs/guides/developer-guide"
     },
     {
-      "source": "/CHANGELOG",
-      "destination": "/docs/project/changelog"
+      "source": "/contributing",
+      "destination": "/CONTRIBUTING"
     },
     {
       "source": "/changelog",
-      "destination": "/docs/project/changelog"
+      "destination": "/CHANGELOG"
     },
     {
-      "source": "/CONTRIBUTING",
-      "destination": "/docs/project/contributing"
+      "source": "/docs/project/contribute",
+      "destination": "/CONTRIBUTING"
     },
     {
-      "source": "/contributing",
-      "destination": "/docs/project/contributing"
+      "source": "/docs/project/contributing",
+      "destination": "/CONTRIBUTING"
+    },
+    {
+      "source": "/docs/project/releases",
+      "destination": "/CHANGELOG"
+    },
+    {
+      "source": "/docs/project/changelog",
+      "destination": "/CHANGELOG"
     }
   ],
   "seo": {
