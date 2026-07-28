@@ -1,3 +1,8 @@
+---
+title: "Disclaimer"
+sidebarTitle: "Disclaimer"
+---
+
 # Disclaimer
 
 TomorrowOS is an open source unified API layer for digital signage operating systems.

@@ -20,7 +20,7 @@ This docs set describes **what exists today** — not a future wishlist. Start h
 | --- | --- |
 | `@tomorrowos/sdk` | Shipped — CMS server, pairing, playlists, media helpers, WebSocket commands |
 | Samsung Tizen player | Shipped — **Tizen 6.5+** |
-| BrightSign player | Shipped — series / firmware dependent (see BrightSign docs) |
+| BrightSign player | Shipped — **Series3/4/5/6** |
 | LG webOS | Coming soon |
 | Android | Coming soon |
 

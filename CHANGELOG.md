@@ -1,219 +1,89 @@
 # Changelog
 
-All notable changes to TomorrowOS will be documented in this file.
+All notable changes to TomorrowOS are documented in this file.
 
-TomorrowOS is an open source project for digital signage.
+TomorrowOS ships two versioned surfaces:
 
-This changelog is intended to track project releases, API changes, documentation updates, capability model changes, SDK updates, connector updates and certification changes.
+| Surface | Package / artifact | Current initial version |
+| --- | --- | --- |
+| **CMS SDK** | `@tomorrowos/sdk` (npm) | **0.9.70** |
+| **Player app** | Tizen `.wgt` + BrightSign SD bundle (unified player line) | **1.0.0** |
 
-## Versioning
+Versioning notes:
 
-TomorrowOS intends to follow semantic versioning once the project reaches a stable release.
+- The **player** uses one product version across supported platforms (Tizen and BrightSign today). New platforms join the same line (for example 1.1), rather than starting a separate `webos-1.0`.
+- The **SDK** follows its own semver on npm and may move faster than the player.
+- Before SDK `1.0.0`, APIs may still change; pin versions in production.
 
-Semantic versioning generally follows this structure:
+---
 
-```txt
-MAJOR.MINOR.PATCH
-```
+## Initial release — 2026-07-28
 
-Example:
+**SDK:** `@tomorrowos/sdk@0.9.70`  
+**Player:** TomorrowOS Player **1.0.0** (Tizen + BrightSign)
 
-```txt
-1.2.3
-```
-
-Where:
-
-| Version part | Meaning |
-| --- | --- |
-| Major | Breaking changes |
-| Minor | New backwards-compatible features |
-| Patch | Bug fixes or small improvements |
-
-Before version `1.0.0`, APIs may change more frequently.
-
-## Release format
-
-Each release should include:
-
-- Version number
-- Release date
-- Summary
-- Added features
-- Changed features
-- Fixed issues
-- Removed features
-- Breaking changes
-- Security updates
-- Known issues
-- Migration notes, if needed
-
-## Categories
-
-Use the following categories where relevant.
+First public baseline of the open-source digital signage foundation: a CMS server SDK, on-device players, and a shared `device.*` command surface.
 
 ### Added
 
-New features, docs, APIs, examples, tests or capability records.
+#### TomorrowOS SDK (`@tomorrowos/sdk` 0.9.70)
 
-### Changed
+- `TomorrowOS` server: HTTP + WebSocket `listen()` for your own CMS
+- Device pairing (`pairing.verify` / `pairing.unpair`) and online / offline presence
+- Playlist catalog: save, retire, assign, publish, and clear device assignments
+- Content policy push via `device.content.setPolicy` / `device.content.clear`
+- Media upload helpers and publish-time asset reachability checks
+- Device helpers: rename, on/off timer, reboot, screenshot, logs, capability query
+- Stores: memory, SQLite, Postgres / Supabase-style backends
+- Control Panel starters and hosting guides (Replit, Vercel / v0)
+- Player download helpers (including BrightSign zip with CMS URL baked in)
 
-Changes to existing functionality, documentation, API behaviour or project structure.
+#### Player app (1.0.0)
 
-### Fixed
+- Unified player line for **Samsung Tizen 6.5+** and **BrightSign**
+- On-device pairing code and CMS connection
+- Playlist playback for images, videos, and widget `.zip` / `.wgt` items
+- Local media cache and offline / reboot resume behaviour
+- Black-gap-aware handoffs between images and videos
+- Brand idle fallback when nothing playable is active
+- Shipped wire commands:
+  - `device.info.get`
+  - `device.info.getCapabilities`
+  - `device.content.setPolicy`
+  - `device.content.clear`
+  - `device.power.reboot`
+  - `device.display.setOnOffTimer`
+  - `device.telemetry.captureScreen`
 
-Bug fixes, corrections, documentation fixes or test fixes.
+#### Platforms
 
-### Removed
+| Platform | Player | Notes |
+| --- | --- | --- |
+| Samsung Tizen | 1.0.0 | Requires **Tizen 6.5+** |
+| BrightSign | 1.0.0 | Requires Series 3/4/5/6 |
+| LG webOS | — | Coming soon |
+| Android | — | Coming soon |
 
-Features, APIs, docs or behaviours that have been removed.
+#### Documentation
 
-### Deprecated
-
-Features or APIs that still exist but should no longer be used.
-
-### Security
-
-Security-related fixes, improvements or disclosures.
+- Beginners guide, developer guide, API overview
+- Assets / atomic activation, widget ZIP, black-gap playback guides
+- Tizen and BrightSign platform pages
+- Certification guide for model + firmware evidence
 
 ### Known issues
 
-Known bugs, limitations or platform-specific issues that still exist.
-
-## Unreleased
-
-### Added
-
-- Initial public project structure
-- Core project documentation
-- API overview
-- Capability matrix documentation
-- Black-gap playback guide
-- Widget and ZIP package handling guide
-- Asset download and atomic activation guide
-- Beginners guide
-- Developer guide
-- Project roadmap
-- Governance policy
-- Support policy
-- Security policy
-- Disclaimer
-- Trademark and brand usage policy
-
-### Changed
-
-- Nothing yet.
-
-### Fixed
-
-- Nothing yet.
-
-### Removed
-
-- Nothing yet.
-
-### Deprecated
-
-- Nothing yet.
-
-### Security
-
-- Initial security policy added.
-
-### Known issues
-
-- TomorrowOS is in early development.
-- APIs are not yet stable.
-- SDK package structure is not yet implemented.
-- CLI package structure is not yet implemented.
-- OS connectors are not yet implemented.
-- Certification test suite is not yet implemented.
-- Capability records are examples only until tested against real devices.
-
-## 0.1.0 - Initial Foundation
-
-Planned first foundation release.
-
-### Added
-
-- Initial repository setup
-- Project README
-- MIT license
-- Code of conduct
-- Contributing guide
-- Security policy
-- Disclaimer
-- Support policy
-- Roadmap
-- Governance policy
-- Trademark and brand usage policy
-- Documentation overview
-- API overview
-- Capability matrix
-- Beginner documentation
-- Developer documentation
-- Playback failure documentation
-- Package handling documentation
-- Asset handling documentation
+- **Tizen:** `device.telemetry.captureScreen` needs commercial firmware **1080+**
+- **BrightSign Series 3:** upgrade firmware to **9.1.140+** for reliable video playback
+- **BrightSign Series 3:** **4K H.264** is a hardware limit — use 1080p H.264
+- webOS and Android players are not shipping in this initial player line yet
 
 ### Notes
 
-This release is intended to establish the direction of TomorrowOS.
+Treat this release as the **initial** SDK + player baseline for documentation, certification, and production pinning:
 
-It does not represent a production-ready SDK, connector, runtime or certification suite.
-
-## Future release areas
-
-Future releases may include:
-
-- `@tomorrowos/sdk`
-- `@tomorrowos/cli`
-- Capability schema
-- Package manifest schema
-- Proof event schema
-- Example signage app
-- Example CMS player
-- Example widget package
-- Certification test runner
-- Tizen connector documentation
-- webOS connector documentation
-- BrightSign connector documentation
-- Android connector documentation
-- Browser runtime documentation
-- Mock runtime for local development
-
-## Changelog rules
-
-When updating this file:
-
-- Keep entries clear and concise
-- Group changes by version
-- Put newest releases at the top
-- Call out breaking changes clearly
-- Call out security changes clearly
-- Mention migration notes where needed
-- Do not overstate production readiness
-- Be honest about known limitations
-
-## Production readiness note
-
-A changelog entry does not mean a feature is production-ready.
-
-Production use should always depend on:
-
-- Tested device model
-- Tested firmware version
-- Tested operating system
-- Capability evidence
-- Security review
-- Certification testing
-- Deployment validation
-- Fallback and rollback planning
-
-See:
-
-```txt
-DISCLAIMER.md
-SUPPORT.md
-docs/capabilities/capability-matrix.md
+```bash
+npm install @tomorrowos/sdk@0.9.70
 ```
+
+Player installs report `playerVersion: "1.0.0"`.

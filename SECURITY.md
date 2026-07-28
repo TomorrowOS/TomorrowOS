@@ -1,3 +1,8 @@
+---
+title: "Security"
+sidebarTitle: "Security"
+---
+
 # Security Policy
 
 TomorrowOS is an open source unified API layer for digital signage operating systems.

@@ -1,3 +1,8 @@
+---
+title: "Code of Conduct"
+sidebarTitle: "Code of Conduct"
+---
+
 # Code of Conduct
 
 ## Our Pledge

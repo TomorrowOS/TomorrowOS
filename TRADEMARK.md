@@ -1,3 +1,8 @@
+---
+title: "Trademark"
+sidebarTitle: "Trademark"
+---
+
 # Trademark and Brand Usage
 
 TomorrowOS is an open source unified API layer for digital signage operating systems.

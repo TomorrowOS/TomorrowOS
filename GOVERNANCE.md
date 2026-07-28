@@ -1,3 +1,8 @@
+---
+title: "Governance"
+sidebarTitle: "Governance"
+---
+
 # Governance
 
 TomorrowOS is an open source unified API layer for digital signage operating systems.

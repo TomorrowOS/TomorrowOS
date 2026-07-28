@@ -1,3 +1,8 @@
+---
+title: "Support"
+sidebarTitle: "Support"
+---
+
 # Support Policy
 
 TomorrowOS is an open source unified API layer for digital signage operating systems.
