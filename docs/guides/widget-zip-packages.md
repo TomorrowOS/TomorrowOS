@@ -1,14 +1,12 @@
 # Widget and ZIP Package Handling
 
-TomorrowOS should treat widgets and ZIP packages as powerful, but high-risk.
+TomorrowOS treats widgets and ZIP packages as playlist content, not as a separate package management API.
 
-A widget or package can unlock rich signage experiences, but it can also create playback failures, black screens, missing assets, broken layouts, security risks and inconsistent behaviour across operating systems.
-
-This guide explains how TomorrowOS should validate, install, activate and recover from packaged content.
+A widget can unlock rich signage experiences, but it can also create playback failures, black screens, missing assets and inconsistent behaviour across runtimes. This guide explains how widgets work in TomorrowOS **today**: how they appear in policy, how the player downloads and extracts packages, how they are shown, and what happens when they fail.
 
 ## Why package handling matters
 
-Digital signage content is often delivered as more than a single image or video.
+Digital signage content is often more than a single image or video.
 
 A package may include:
 
@@ -19,464 +17,311 @@ A package may include:
 - Images
 - Videos
 - JSON data
-- Configuration files
 - Local assets
-- External API calls
-- A manifest file
-- A fallback image
 
-Different operating systems and runtimes may handle packages differently.
+TomorrowOS does not expose `packages.validate` / `packages.install` / `packages.activate` commands.
 
-That means TomorrowOS needs a consistent way to validate and run packages safely.
+Instead:
+
+1. The CMS hosts a `.zip` / `.wgt` (or a remote HTML URL)
+2. The playlist item points at that URL
+3. The player prepares and shows the widget when that item plays
 
 ## Core principle
 
 The core principle is:
 
-> Treat every package as untrusted until it has been validated.
+> A widget is just another playlist item. Prepare it at play time. If it fails, fall back to brand idle.
 
-A package should never be activated on screen just because it downloaded successfully.
+There is no separate package install / activate / rollback surface in `@tomorrowos/sdk` yet.
 
-It should first be checked, staged, tested and only then activated.
+## How widgets appear in policy
 
-## Package lifecycle
+Widgets live inside `device.content.setPolicy` playlist items.
 
-A safe package lifecycle should follow this flow:
-
-1. Receive package
-2. Validate file type
-3. Validate package size
-4. Extract safely into staging
-5. Check for unsafe file paths
-6. Validate manifest
-7. Confirm entrypoint exists
-8. Confirm required assets exist
-9. Check permissions
-10. Preload package
-11. Confirm it can render
-12. Activate package
-13. Monitor runtime errors
-14. Fall back if it fails
-15. Roll back if needed
-
-## Example manifest
-
-A TomorrowOS widget package should include a manifest.
-
-Example:
-
-```json
-{
-  "name": "weather-widget",
-  "version": "1.0.0",
-  "entrypoint": "index.html",
-  "type": "widget",
-  "permissions": ["network"],
-  "assets": [
-    "index.html",
-    "main.js",
-    "style.css",
-    "fallback.jpg"
-  ],
-  "fallback": "fallback.jpg",
-  "timeoutMs": 5000
-}
-```
-
-## Required manifest fields
-
-| Field | Purpose |
-| --- | --- |
-| `name` | Package name |
-| `version` | Package version |
-| `entrypoint` | Main file to load |
-| `type` | Package type, such as `widget` or `app` |
-| `assets` | Files expected inside the package |
-| `fallback` | Local fallback content |
-| `timeoutMs` | Maximum time to wait before fallback |
-
-## Optional manifest fields
-
-| Field | Purpose |
-| --- | --- |
-| `permissions` | Required permissions such as network access |
-| `screenOrientation` | Preferred orientation |
-| `minRuntimeVersion` | Minimum TomorrowOS runtime version |
-| `minWidth` | Minimum supported width |
-| `minHeight` | Minimum supported height |
-| `maxStorageMb` | Maximum storage expected |
-| `requiresNetwork` | Whether package requires live network access |
-| `supportsOffline` | Whether package can run offline |
-| `proofEnabled` | Whether proof events should be recorded |
-
-## Package validation
-
-Package validation should check:
-
-- File is present
-- File extension is allowed
-- File is a valid ZIP where applicable
-- Package size is within limits
-- Manifest exists
-- Manifest is valid JSON
-- Required manifest fields exist
-- Entrypoint exists
-- Fallback exists
-- Assets listed in manifest exist
-- No unsafe paths exist
-- No files attempt to extract outside package directory
-- File types are allowed
-- Permissions are declared
-- Runtime requirements are compatible
-
-Example:
+Typed playlist fields today:
 
 ```ts
-const result = await tomorrow.packages.validate("/packages/weather-widget.zip")
-
-if (result.ok) {
-  await tomorrow.packages.install("/packages/weather-widget.zip")
-} else {
-  await tomorrow.playback.restoreLastKnownGood()
+{
+  url: string
+  type?: string
+  durationMs?: number
+  assetId?: string
 }
 ```
 
-## Unsafe path protection
+Players also honour these optional fields when present:
 
-ZIP packages must be protected against unsafe extraction paths.
+| Field | Role |
+| --- | --- |
+| `url` | Package URL (`.zip` / `.wgt`) or remote HTML URL |
+| `type` | Set to `"widget"` to force widget handling |
+| `entryFile` | HTML entry inside the archive (default `index.html`) |
+| `launchUrl` / `entryUrl` | Direct launch URL for non-package widgets |
+| `version` | Cache key version (default `v1`) |
+| `durationMs` | On-screen duration; widgets default to **20000** ms if omitted |
 
-Examples of unsafe paths:
+### Example: ZIP / WGT package
 
-```txt
-../config.json
-../../system/file
-/assets/../../secrets.txt
-C:\\Windows\\system32\\file
+```ts
+await tos.device(deviceId).sendCommand("device.content.setPolicy", {
+  policy: {
+    playlists: [
+      {
+        id: "lobby",
+        name: "Lobby",
+        items: [
+          {
+            url: "https://cms.example.com/media/weather-widget.zip",
+            type: "widget",
+            entryFile: "index.html",
+            version: "1.2.0",
+            durationMs: 30000
+          }
+        ]
+      }
+    ]
+  }
+})
 ```
 
-TomorrowOS should reject packages that attempt to write outside the approved package directory.
+If `type` is omitted, the player still treats `.zip` / `.wgt` URLs as widgets by extension.
 
-## File type rules
+### Example: hosted HTML widget (no ZIP)
 
-TomorrowOS should define allowed file types.
-
-Common allowed types may include:
-
-```txt
-.html
-.css
-.js
-.json
-.jpg
-.jpeg
-.png
-.webp
-.svg
-.mp4
-.webm
-.woff
-.woff2
-.ttf
+```ts
+{
+  url: "https://cdn.example.com/widgets/clock/index.html",
+  type: "widget",
+  durationMs: 20000
+}
 ```
 
-Potentially risky or unsupported file types should be blocked unless explicitly allowed.
+Or with a separate launch URL:
 
-Examples:
-
-```txt
-.exe
-.bat
-.sh
-.command
-.dll
-.dylib
-.so
-.php
-.py
-.rb
+```ts
+{
+  url: "https://cdn.example.com/widgets/clock/",
+  type: "widget",
+  launchUrl: "https://cdn.example.com/widgets/clock/index.html",
+  durationMs: 20000
+}
 ```
+
+Without `type: "widget"`, a normal HTML URL is treated as `web` content. It still loads in an iframe, but it skips package download / extract / widget cache.
+
+## Content type detection
+
+The player resolves item type in this order:
+
+1. Explicit `item.type` if present
+2. Otherwise infer from the URL:
+   - image extensions → `image`
+   - video extensions → `video`
+   - `.wgt` / `.zip` → `widget`
+   - else → `web`
+
+## Package lifecycle (as implemented)
+
+For `.zip` / `.wgt` package URLs, the player does this at play time:
+
+1. Resolve content type as `widget`
+2. Check local widget cache (`url` + `version`)
+3. If missing, download the archive into staging storage
+4. Extract into a local widget folder
+5. Find the entry HTML (`entryFile` or default `index.html`)
+6. Remember the local entry path in `localStorage`
+7. Mount the entry in an iframe
+8. Fade-swap onto the visible content layer
+9. Keep it on screen for `durationMs` (or 20s default)
+10. On failure, stop and show brand idle
+
+Important differences from an ideal “package manager”:
+
+- No separate validate / install / activate commands
+- No required package manifest
+- No staged “ready but inactive” package registry
+- No package-level rollback API
+- Widgets are **not** prefetched by the image/video download queue; they are prepared when the item is about to play
 
 ## Entrypoint handling
 
-The entrypoint is the first file loaded by the runtime.
+Default entry file:
 
-Example:
+```txt
+index.html
+```
+
+Override with playlist `entryFile`:
 
 ```json
 {
-  "entrypoint": "index.html"
+  "url": "https://cms.example.com/media/menu.zip",
+  "type": "widget",
+  "entryFile": "app/index.html"
 }
 ```
 
-Before activation, TomorrowOS should confirm:
+Before showing the widget, the player:
 
-- The entrypoint exists
-- The entrypoint is inside the package
-- The entrypoint is an allowed file type
-- The entrypoint can be loaded
-- Required local assets can be found
-- A fallback exists if loading fails
+- Looks for `{extractDir}/{entryFile}`
+- If missing, searches recursively for that filename (limited depth)
+- Fails with an error if the entry file cannot be found
 
-## Package staging
+There is **no** manifest-driven entrypoint today. Put the HTML where `entryFile` expects it, or keep the default `index.html`.
 
-Packages should be staged before activation.
+## Caching
 
-Staging means:
+Widget packages use a local cache index keyed by:
 
-- The package has been downloaded
-- The package has been extracted safely
-- The manifest has been validated
-- The entrypoint has been checked
-- Required assets are present
-- Capability checks have passed
-- Fallback content exists
-
-A staged package is not necessarily active yet.
-
-## Package activation
-
-A package should only be activated after validation and staging.
-
-Example:
-
-```ts
-const installed = await tomorrow.packages.install("/packages/weather-widget.zip")
-
-await tomorrow.packages.activate(installed.packageId, {
-  mode: "atomic",
-  fallback: "last-known-good"
-})
+```txt
+${url}::${version || "v1"}
 ```
 
-## Atomic activation
+Behaviour:
 
-Package activation should be atomic where possible.
+- Cache hit → reuse local entry path if the file still exists
+- Missing local file → drop that cache entry and download again
+- Concurrent prepares for the same key are deduped
 
-This means the screen should not switch to the new package until TomorrowOS knows the package can start safely.
+Changing `version` forces a fresh download / extract for the same URL.
 
-A package should not activate if:
+## How widgets are shown
 
-- Manifest validation fails
-- Entrypoint is missing
-- Fallback is missing
-- Required assets are missing
-- Runtime capability is unsupported
-- Package extraction failed
-- Package exceeds storage limits
-- The device is under memory pressure
+Widgets are shown in an **iframe** inside the player content layers.
 
-## Widget timeout handling
+- Local packages launch from a local file URL after extract
+- Hosted HTML widgets launch from the remote URL
+- Layer handoff uses a fade swap
+- Stopping playback clears the active widget iframe
 
-Widgets should not be allowed to hold the screen hostage.
+There is no separate native “widget runtime” API beyond the player’s HTML/iframe path.
 
-TomorrowOS should support timeout rules.
+## Failure handling
 
-Example:
+If prepare or mount fails, the player:
 
-```ts
-await tomorrow.playback.play({
-  type: "widget",
-  packageId: "weather-widget",
-  timeoutMs: 5000,
-  fallback: "/assets/fallback.jpg"
-})
-```
+1. Logs the failure
+2. Stops the current widget / playback path
+3. Shows **brand idle** (not a previous-good package restore)
 
-If the widget does not load within the timeout, TomorrowOS should:
+Common failure causes:
 
-1. Stop the widget
-2. Use fallback content
-3. Log the failure
-4. Report telemetry
-5. Keep last known good content available
+- Download URL is not absolute `http(s)`
+- Archive download failed
+- Archive extract failed
+- Entry HTML not found
+- Widget layer unavailable / playback cancelled mid-prepare
+- Runtime / browser incompatibility inside the widget itself
 
-## Widget crash handling
-
-Widgets may fail after activation.
-
-Common causes include:
-
-- JavaScript errors
-- Network failures
-- Missing assets
-- Font loading issues
-- API timeouts
-- Memory pressure
-- Browser engine incompatibility
-- Unsupported CSS or JavaScript features
-
-TomorrowOS should detect and report widget failures where possible.
-
-Example failure event:
-
-```json
-{
-  "type": "package.failure",
-  "packageId": "weather-widget",
-  "reason": "widget_runtime_error",
-  "message": "Required asset failed to load",
-  "fallbackUsed": true,
-  "timestamp": "2026-01-01T10:00:00.000Z"
-}
-```
-
-## Package rollback
-
-If a package fails, TomorrowOS should support rollback.
-
-Rollback may return to:
-
-- Last known good package
-- Last known good playlist
-- Default fallback image
-- Emergency fallback content
-
-Example:
-
-```ts
-await tomorrow.packages.rollback("weather-widget")
-```
-
-Rollback should be logged and reported.
+There is currently no public event like `package.failure` and no `packages.rollback(...)` command.
 
 ## Offline behaviour
 
-Packages should declare whether they support offline playback.
+- Already-cached widget packages can still launch from local storage
+- Uncached packages need network access to download
+- Hosted HTML widgets that depend on remote assets may fail offline
+- Image / video playlist prefetch does **not** warm widget packages ahead of time
 
-Example:
+If you need offline widgets, publish them early enough that the device has already played (and therefore cached) them at least once, or keep them as simple self-contained packages.
 
-```json
-{
-  "supportsOffline": true,
-  "requiresNetwork": false
-}
-```
+## Security reality
 
-If a package requires network access and the device is offline, TomorrowOS should avoid activating it unless a fallback exists.
+TomorrowOS currently focuses on getting widgets onto screen safely enough for signage use. Several stronger package-security controls are **not** shipped yet:
 
-## Permissions
+| Control | Current status |
+| --- | --- |
+| Manifest validation | Not implemented |
+| Allowed file-type allowlist | Not enforced |
+| Package size limits | Not enforced in the widget path |
+| ZIP path-traversal rejection | Not enforced in the player extract path |
+| iframe sandbox | Not applied |
+| Permission declarations | Not implemented |
+| Package rollback API | Not implemented |
 
-Packages should declare permissions clearly.
+Practical guidance for CMS builders:
 
-Example:
-
-```json
-{
-  "permissions": ["network", "storage"]
-}
-```
-
-Potential permissions may include:
-
-```txt
-network
-storage
-proof
-telemetry
-display
-device
-sync
-```
-
-TomorrowOS should avoid giving packages unnecessary access.
-
-## Security risks
-
-Package handling should protect against:
-
-- Path traversal
-- Unsafe extraction
-- Untrusted scripts
-- Oversized packages
-- Missing fallback content
-- External dependency failure
-- Secret leakage through logs
-- Uncontrolled network calls
-- Runtime crashes
-- Unauthenticated device access
-- Customer data exposure
+- Only publish packages you trust
+- Prefer self-contained packages with a clear `index.html`
+- Avoid relying on unpackaged remote scripts when offline matters
+- Use `version` when you intentionally replace package contents at the same URL
 
 ## Capability checks
 
-Before running a package, TomorrowOS should check relevant capabilities.
+There is no dedicated `package.zip` capability flag today.
 
-Examples:
+Practical checks before relying on widgets:
 
-```txt
-package.zip
-package.manifest
-package.safe_extraction
-package.rollback
-playback.widget
-playback.widget.entrypoint
-playback.widget.timeout
-playback.widget.local_assets
-playback.widget.external_network
-security.package_validation
-asset.atomic_activation
-```
-
-## API examples
-
-Validate package:
+1. Confirm the device can receive policy:
 
 ```ts
-const validation = await tomorrow.packages.validate("/packages/menu-widget.zip")
+const caps = await tos.device(deviceId).sendCommand(
+  "device.info.getCapabilities",
+  {}
+)
+
+if (!caps.data.capabilities["device.content.setPolicy"]?.supported) {
+  // cannot publish widget playlists to this device
+}
 ```
 
-Install package:
+2. Publish a small test widget playlist and verify it renders on the real device / firmware.
+
+Widget support can still vary by OS, browser engine and firmware even when `setPolicy` itself is supported.
+
+## API surface used for widgets
+
+Widgets are published through the normal content policy path:
 
 ```ts
-const installed = await tomorrow.packages.install("/packages/menu-widget.zip")
+device.content.setPolicy
+device.content.clear
+
+tos.playlists.savePlaylist({ name, items, schedule })
+tos.playlists.publishPlaylistsToDevice(deviceId, playlistIds)
 ```
 
-Activate package:
+Not available today:
 
 ```ts
-await tomorrow.packages.activate(installed.packageId, {
-  mode: "atomic",
-  fallback: "/assets/fallback.jpg"
-})
+tomorrow.packages.validate(...)
+tomorrow.packages.install(...)
+tomorrow.packages.activate(...)
+tomorrow.packages.rollback(...)
+tomorrow.packages.remove(...)
 ```
 
-Rollback package:
+## BrightSign player zip vs content widget zip
 
-```ts
-await tomorrow.packages.rollback(installed.packageId)
-```
+Do not confuse these two:
 
-Remove package:
+| Package | Purpose |
+| --- | --- |
+| Content widget `.zip` / `.wgt` | Playlist media that the player extracts and shows in an iframe |
+| BrightSign player zip (`/players/brightsign.zip`) | The TomorrowOS player app package used to install / update the player itself |
 
-```ts
-await tomorrow.packages.remove(installed.packageId)
-```
+This guide is about **content widgets**, not the BrightSign player install zip.
 
-## Certification tests
+## Practical checklist
 
-Every OS, model and firmware combination should be tested for package behaviour.
+Before shipping a widget to screens:
 
-Minimum tests:
-
-- Valid ZIP package
-- Invalid ZIP package
-- Missing manifest
-- Invalid manifest JSON
-- Missing entrypoint
-- Missing fallback
-- Unsafe path traversal attempt
-- Oversized package
-- Unsupported file type
-- Widget timeout
-- Widget runtime error
-- Offline package behaviour
-- Rollback after failed package
-- Atomic activation
-- Package removal
+- [ ] Package has a clear entry HTML (`index.html` or explicit `entryFile`)
+- [ ] Playlist item uses absolute `http(s)` URL
+- [ ] `type: "widget"` is set when the URL is not obviously `.zip` / `.wgt`
+- [ ] `durationMs` is set intentionally
+- [ ] `version` is bumped when package bytes change at the same URL
+- [ ] Widget is tested on the target OS / firmware
+- [ ] Failure path is acceptable (brand idle, not a custom package rollback)
 
 ## Goal
 
-TomorrowOS should make packaged signage content safer, more predictable and easier to deploy.
+TomorrowOS should make packaged signage content practical to deploy across supported runtimes.
 
-The goal is not just to support ZIP files.
+Today that means:
 
-The goal is to make sure packaged content can be validated, trusted, activated and recovered from across different signage operating systems.
+- Publish widgets as playlist items
+- Let the player download, extract, cache and iframe them
+- Fall back to brand idle when preparation fails
+
+The longer-term goal is stronger validation, safer extraction and clearer recovery. Until those APIs exist, treat widgets as trusted content you intentionally publish through `device.content.setPolicy`.

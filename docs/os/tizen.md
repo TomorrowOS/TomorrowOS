@@ -1,812 +1,266 @@
 # Samsung Tizen
 
-This page documents TomorrowOS support considerations for Samsung Tizen-based commercial displays.
+This page documents **how TomorrowOS works on Samsung Tizen today**, including install options, on-device setup, supported commands, playback behaviour, and deploy notes.
 
-Tizen is one of the most important operating systems for digital signage because many Samsung commercial displays run Tizen-based smart signage platforms.
+**Current support:** TomorrowOS V1 supports **Tizen 6.5+** commercial displays only. Older generations are not supported without a separate player build or firmware path.
 
-TomorrowOS should treat Tizen as a first-class signage operating system, but support should always be mapped by model, firmware version and runtime capability.
+Tizen is a first-class TomorrowOS player platform alongside BrightSign. Support still depends on **display model**, **Tizen / firmware version**, and commercial signage privileges — always verify on the real panel before claiming production support.
 
 ## Purpose
 
-The purpose of this page is to track how TomorrowOS should approach Samsung Tizen support across:
+This page covers:
 
-- Device identification
-- Runtime capability
-- Browser engine behaviour
-- Image playback
-- Video playback
-- Widget playback
-- ZIP/package handling
-- Asset storage
-- Display control
+- How the TomorrowOS Tizen player boots and is installed
+- On-device orientation and CMS URL setup
+- Device identification and capabilities
+- Content policy / playback behaviour
+- Widget and package handling
+- Display controls (reboot, on/off timer)
 - Screenshots
-- Telemetry
-- Proof-of-play
-- Synchronisation
-- Security
-- Certification testing
+- Deploy and certification checklist
 
 ## Core principle
 
-Tizen support should never be assumed universally.
+> Tizen is capable, but model + firmware matter.
 
-A feature may depend on:
+A feature may work on one commercial panel and fail on another. Prefer:
 
-- Samsung display model
-- Tizen version
-- Firmware version
-- Commercial display generation
-- Browser engine version
-- App packaging method
-- Permissions
-- Whether a native bridge is available
-- Whether the app is running as a web app, hosted app or packaged app
-- Whether the device is being used in portrait, landscape or video wall mode
+1. Check `device.info.getCapabilities`
+2. Test the real playlist on that model + firmware
+3. Only then mark the combination production-safe
 
-Every Tizen feature should be validated through the Capability API before use.
+## Runtime architecture
 
-Example:
+TomorrowOS on Tizen is a packaged web app (`.wgt`) that uses Samsung `webapis`:
 
-```ts
-const support = await tomorrow.capabilities.check("playback.video.h264")
+| Piece | Role |
+| --- | --- |
+| `TomorrowOS.wgt` | Signed Tizen package installed on the display |
+| `index.html` + `main.js` | Player UI, intro, CMS setup, pairing, policy, playlist logic |
+| `webapis.productinfo` / `systemcontrol` | Device info, reboot, panel mute, native screenshot |
+| `webapis.avplay` (+ `avplaystore` when available) | Hardware video playback |
+| `tizen.filesystem` / `tizen.download` / `tizen.archive` | Local cache, downloads, widget extract |
 
-if (support.status === "supported") {
-  await tomorrow.playback.play({
-    type: "video",
-    src: "/assets/promo.mp4",
-    fallback: "/assets/fallback.jpg"
-  })
-}
-```
+Important behaviour:
 
-## Recommended support status approach
+- First launch shows an **orientation intro**
+- If no CMS URL is stored yet, the player shows an **on-device CMS setup** screen
+- CMS URL is saved in `localStorage` and reused on later boots
+- Press **Red (A)** after setup to re-open orientation selection
+- Playback is policy-driven through `device.content.setPolicy`
 
-Tizen features should usually start as:
+## Configure CMS URL and orientation
+
+Unlike BrightSign, the Tizen player does **not** rely on editing a `config.js` on an SD card. Setup happens on the display.
+
+### Orientation
+
+On first launch, pick:
+
+- `landscape`
+- `portrait-right`
+- `portrait-left`
+
+The choice is stored on the device. To change it later, press the remote **Red (A)** key to re-open the orientation intro.
+
+### CMS URL
+
+If the player has never saved a CMS endpoint, it shows the CMS setup screen. Enter the CMS HTTP(S) URL, for example:
 
 ```txt
-unknown
+http://192.168.1.105:3000/
 ```
 
-Then move to one of the following only after evidence:
+or a hosted CMS:
 
 ```txt
-supported
-partial
-model-dependent
-firmware-dependent
-requires-bridge
-unsupported
-unsafe
+https://your-cms.example.com/
 ```
 
-Do not mark a Tizen capability as `supported` unless it has been tested on a real model and firmware version.
+The player converts `http://` / `https://` to `ws://` / `wss://` for the device WebSocket.
+
+### Hosted CMS download
+
+If you install / launch the Tizen player from a **hosted CMS** (Control Panel → Download Players → Samsung, URL Launcher pointing at your CMS `.wgt`, etc.), use **that same CMS origin** as the CMS URL on the setup screen.
+
+The Tizen package itself does not bake BrightSign-style `config.js` values. You still enter (or confirm) the CMS address on the panel the first time, then it is remembered.
+
+### Local testing
+
+Do **not** enter `localhost` or `127.0.0.1` as the CMS URL.
+
+The Tizen app runs on the Samsung display, not on your laptop. `localhost` would point at the TV itself and pairing / WebSocket will fail.
+
+For local testing, use your computer’s **LAN IP**, for example:
+
+```txt
+http://192.168.1.105:3000/
+```
+
+The display and CMS must be on a reachable network path (same LAN, or a public / tunnel URL).
 
 ## Device identification
 
-TomorrowOS should attempt to identify:
+`device.info.get` uses Tizen product / system APIs.
 
-- Manufacturer
-- Device model
-- Tizen version
-- Firmware version
-- Serial number, where available
-- Display orientation
-- Screen resolution
-- Runtime type
-- App version
-- Storage availability
-- Network state
-
-Example capability names:
-
-```txt
-device.info
-device.model
-device.firmware
-device.os_version
-device.serial
-device.orientation
-device.resolution
-device.storage
-```
-
-Example API:
-
-```ts
-const device = await tomorrow.device.info()
-```
-
-Example response:
+Typical fields:
 
 ```json
 {
-  "manufacturer": "Samsung",
-  "os": "tizen",
-  "osVersion": "7.0",
+  "online": true,
+  "deviceId": "...",
   "model": "QM43C",
-  "firmware": "example-firmware",
-  "orientation": "landscape",
-  "runtime": "browser"
+  "firmware": "...",
+  "serialNumber": "..."
 }
 ```
 
-## Runtime considerations
+Use model + firmware together when diagnosing playback or codec issues.
 
-Tizen signage apps may run in different ways depending on deployment method.
+## Capability map
 
-Possible runtime types:
+On a real Tizen runtime (`window.webapis` present), `device.info.getCapabilities` currently reports:
 
-- Hosted web app
-- Packaged web app
-- Custom app
-- Browser-based player
-- CMS player runtime
-- Native bridge-assisted runtime
+| Command | Typical status |
+| --- | --- |
+| `device.info.get` | supported |
+| `device.power.reboot` | supported |
+| `device.content.setPolicy` | supported |
+| `device.content.clear` | supported |
+| `device.telemetry.captureScreen` | supported when firmware is **1080+** |
+| `device.display.setOnOffTimer` | supported |
 
-TomorrowOS should document which runtime is being tested.
+Always trust the live capability response over this table.
 
-Capability support may change depending on runtime.
+### Screenshot firmware requirement
 
-Example:
+For `device.telemetry.captureScreen` to work reliably, the Samsung commercial display firmware must be at least **1080**.
 
-```json
-{
-  "feature": "telemetry.screenshot",
-  "os": "tizen",
-  "status": "requires-bridge",
-  "runtime": "hosted-web-app",
-  "notes": "Screenshot support may not be available from a normal web runtime without deeper platform access."
-}
-```
+| Requirement | Detail |
+| --- | --- |
+| Command | `device.telemetry.captureScreen` |
+| Minimum firmware | **1080** (or newer) |
+| Guidance | On older firmware, screenshot may fail even if pairing and playback work |
 
-## Browser engine behaviour
+Practical rules:
 
-Tizen web support can vary across generations and firmware.
+1. Check `device.info.get` for the panel firmware before relying on screenshots
+2. If capture fails on an otherwise healthy panel, upgrade firmware to **1080+** and re-test
+3. Do not treat screenshot support as universal across all Tizen signage firmware builds
 
-TomorrowOS should track:
+## Content and playback
 
-- JavaScript support
-- CSS support
-- HTML5 video support
-- Web storage support
-- Canvas support
-- WebGL support
-- WebSocket support
-- Fetch/XHR support
-- Service worker support, if available
-- Autoplay behaviour
-- Media decoder behaviour
-- Memory limits
-- Browser crash behaviour
-
-Relevant capability names:
-
-```txt
-runtime.javascript
-runtime.css
-runtime.html5_video
-runtime.canvas
-runtime.webgl
-runtime.websocket
-runtime.fetch
-runtime.local_storage
-runtime.service_worker
-runtime.media_autoplay
-runtime.memory_limit
-```
-
-## Image playback
-
-Tizen image support should be tested by model and firmware.
-
-Track support for:
-
-- JPG
-- PNG
-- WebP
-- SVG
-- GIF
-- Transparency
-- Large image files
-- High-resolution images
-- Aspect ratio scaling
-- Portrait rotation
-- Landscape rotation
-- Memory pressure behaviour
-
-Capability examples:
-
-```txt
-playback.image.jpg
-playback.image.png
-playback.image.webp
-playback.image.svg
-playback.image.gif
-playback.image.transparency
-playback.image.large_file
-playback.image.scaling
-```
-
-Recommended tests:
-
-- Load simple JPG
-- Load simple PNG
-- Load transparent PNG
-- Load large image
-- Load unsupported image type
-- Switch image to image
-- Switch image to video
-- Confirm fallback image works
-
-## Video playback
-
-Video playback should be treated as a high-risk area.
-
-Track support for:
-
-- MP4
-- H.264
-- H.265
-- WebM
-- VP9
-- AV1
-- MOV
-- Resolution limits
-- Bitrate limits
-- Frame rate limits
-- Muted autoplay
-- Looping
-- First-frame readiness
-- Hardware decoding
-- Decoder failure
-- Audio behaviour
-- Black frame at start
-- Black frame at end
-
-Capability examples:
-
-```txt
-playback.video.mp4
-playback.video.h264
-playback.video.h265
-playback.video.webm
-playback.video.vp9
-playback.video.av1
-playback.video.first_frame
-playback.video.looping
-playback.video.hardware_decode
-playback.video.muted_autoplay
-```
-
-Recommended tests:
-
-- Play H.264 MP4
-- Play H.265 MP4
-- Play unsupported codec
-- Loop video
-- Switch image to video
-- Switch video to image
-- Switch video to video
-- Confirm fallback after decoder failure
-- Confirm first-frame guard works
-- Confirm black-frame-safe transition works
-
-## Black-gap handling
-
-TomorrowOS should test Tizen for black gaps during content transitions.
-
-Transition pairs to test:
-
-```txt
-transition.image_to_image
-transition.image_to_video
-transition.video_to_image
-transition.video_to_video
-transition.image_to_widget
-transition.widget_to_image
-transition.video_to_widget
-transition.widget_to_video
-transition.playlist_to_playlist
-transition.zone_to_zone
-```
-
-Tizen-specific risks may include:
-
-- Video first-frame delay
-- Browser reload behaviour
-- Media decoder reset
-- Web app memory pressure
-- Widget load delay
-- Unsupported codec causing blank playback
-- Playlist activation before assets are ready
-
-Recommended behaviour:
-
-- Keep previous content visible
-- Preload next content
-- Confirm first video frame
-- Confirm widget entrypoint
-- Use timeout
-- Fall back if content fails
-- Restore last known good content
-
-Example:
+Playback is policy-driven:
 
 ```ts
-await tomorrow.transitions.execute({
-  mode: "black-frame-safe",
-  preload: true,
-  requireFirstFrame: true,
-  fallback: "/assets/fallback.jpg",
-  timeoutMs: 3000
+await tos.device(deviceId).sendCommand("device.content.setPolicy", {
+  policy: {
+    playlists: [
+      {
+        id: "lobby",
+        name: "Lobby",
+        items: [
+          { type: "image", url: "https://cdn.example.com/promo.jpg", durationMs: 8000 },
+          { type: "video", url: "https://cdn.example.com/loop.mp4" }
+        ]
+      }
+    ]
+  }
 })
 ```
 
-## Widget and HTML support
+Tizen-specific playback notes:
 
-Tizen widget support should be tested carefully.
-
-Track support for:
-
-- Local HTML
-- Local CSS
-- Local JavaScript
-- Fonts
-- External API calls
-- Local JSON files
-- Local images
-- Local videos
-- WebSocket connections
-- Timers
-- Animation performance
-- Runtime errors
-- Memory limits
-- Offline behaviour
-
-Capability examples:
-
-```txt
-playback.widget
-playback.widget.entrypoint
-playback.widget.local_assets
-playback.widget.external_network
-playback.widget.timeout
-playback.widget.runtime_errors
-playback.widget.fallback
-```
-
-Recommended tests:
-
-- Load simple widget
-- Load widget with local assets
-- Load widget with external API call
-- Load widget offline
-- Missing entrypoint
-- JavaScript error
-- Widget timeout
-- Widget fallback
-- Widget to image transition
-- Widget to video transition
-
-## ZIP and package handling
-
-Tizen package support may depend heavily on the runtime and deployment method.
-
-TomorrowOS should not assume ZIP handling is supported in a normal browser runtime.
-
-Capability examples:
-
-```txt
-package.zip
-package.manifest
-package.safe_extraction
-package.entrypoint
-package.rollback
-package.remove
-```
-
-Likely support status before testing:
-
-```txt
-requires-bridge
-```
-
-or:
-
-```txt
-unknown
-```
-
-Package handling should test:
-
-- Valid ZIP package
-- Invalid ZIP package
-- Missing manifest
-- Invalid manifest
-- Missing entrypoint
-- Unsafe path traversal
-- Unsupported file type
-- Oversized package
-- Package rollback
-- Package removal
-
-## Asset storage and cache
-
-Tizen storage behaviour should be tested by model, firmware and app runtime.
-
-Track support for:
-
-- Asset download
-- Local storage
-- Cache size
-- Cache cleanup
-- Checksum validation
-- Partial download detection
-- Asset expiry
-- Offline playback
-- Last known good content
-- Atomic activation
-
-Capability examples:
-
-```txt
-asset.download
-asset.checksum
-asset.stage
-asset.atomic_activation
-asset.cleanup
-asset.expiry
-asset.storage.available
-asset.storage.pressure
-asset.partial_download_detection
-network.offline_cache
-```
-
-Recommended tests:
-
-- Download image
-- Download video
-- Interrupt download
-- Detect partial file
-- Validate checksum
-- Fill storage
-- Cleanup expired asset
-- Continue playback offline
-- Activate playlist atomically
-- Roll back failed activation
+- Images / UI use dual HTML content layers
+- Playlist video prefers **AVPlay** hardware playback (dual players via `avplaystore` when available)
+- Black-gap avoidance keeps the previous picture up until the next item is ready — see `docs/guides/black-gap-playback.md`
+- Widgets (`.zip` / `.wgt`) download, extract locally and load in an iframe — see `docs/guides/widget-zip-packages.md`
+- Media is cached under the Tizen app download / private storage paths
+- App orientation and system orientation are composed carefully so portrait / landscape stay correct for both HTML and AVPlay
 
 ## Display control
 
-Tizen display control may depend on model, firmware, permissions and API access.
+### Reboot
 
-Track support for:
-
-- Power on
-- Power off
-- Reboot
-- Restart app
-- Brightness
-- Volume
-- Mute
-- Input source
-- Orientation
-- Screen resolution
-- Panel status
-- Temperature, where available
-- Usage hours, where available
-
-Capability examples:
-
-```txt
-display.power
-display.reboot
-display.restart_app
-display.brightness
-display.volume
-display.mute
-display.input
-display.orientation
-display.panel_status
-display.temperature
-display.usage_hours
+```ts
+await tos.device(deviceId).sendCommand("device.power.reboot", {})
 ```
 
-Support should usually be marked as:
+Uses `webapis.systemcontrol.rebootDevice`. The player tries to save resume state before restarting.
 
-```txt
-model-dependent
-firmware-dependent
-requires-bridge
+### On / off timer
+
+```ts
+await tos.device(deviceId).sendCommand("device.display.setOnOffTimer", {
+  onOffTimer: { turnOnAt: "08:00", turnOffAt: "22:00" }
+})
 ```
 
-unless tested and confirmed.
-
-## Network
-
-Tizen network support should track:
-
-- Online status
-- Offline status
-- IP address
-- MAC address, where available
-- DNS test
-- URL reachability
-- Captive portal detection
-- Reconnect detection
-- Network jitter
-- Offline playback behaviour
-
-Capability examples:
-
-```txt
-network.status
-network.ip_address
-network.mac_address
-network.dns_test
-network.url_test
-network.captive_portal
-network.reconnect
-network.offline_cache
-```
-
-Recommended tests:
-
-- Start online
-- Drop network
-- Continue cached playback
-- Reconnect
-- Retry failed download
-- Report offline event
-- Report reconnect event
-
-## Telemetry
-
-Tizen telemetry should report what is happening on the device and runtime.
-
-Track support for:
-
-- Heartbeat
-- Current content
-- Current playlist
-- App version
-- Runtime version
-- Online/offline state
-- Playback errors
-- Package errors
-- Asset errors
-- Storage pressure
-- Memory pressure
-- Crash logs
-- Screenshots, where supported
-- Last successful proof-of-play
-
-Capability examples:
-
-```txt
-telemetry.heartbeat
-telemetry.current_content
-telemetry.current_playlist
-telemetry.app_version
-telemetry.runtime_version
-telemetry.playback_errors
-telemetry.package_errors
-telemetry.asset_errors
-telemetry.storage_pressure
-telemetry.memory_pressure
-telemetry.screenshot
-telemetry.logs
-```
+On Tizen this is implemented with **panel mute** scheduling while the device stays connected. Capability is gated by `setPanelMute`.
 
 ## Screenshots
 
-Screenshot support should be treated carefully.
-
-It may be:
-
-```txt
-supported
-unsupported
-model-dependent
-firmware-dependent
-requires-bridge
-unsafe
-unknown
+```ts
+await tos.device(deviceId).sendCommand("device.telemetry.captureScreen", {})
 ```
 
-depending on the Tizen model and runtime.
+Tizen prefers the native `systemcontrol.captureScreen` path when available, with a canvas fallback.
 
-Screenshot capability examples:
+**Firmware requirement:** screenshot needs commercial firmware **1080+**. Older firmware may fail capture even when the rest of the player works.
 
-```txt
-telemetry.screenshot
-proof.screenshot
-proof.display
-```
+## Supported baseline
 
-Security considerations:
+V1 targets:
 
-- Screenshots may contain customer data
-- Screenshots may contain pricing
-- Screenshots may contain internal content
-- Screenshots may reveal environment details
-- Screenshots should not be captured or transmitted without permission
+- Samsung commercial displays on **Tizen 6.5+**
+- Tizen web package install (URL Launcher, Device Manager, or USB sideload)
 
-## Proof-of-play and proof-of-display
+## Deploy checklist
 
-TomorrowOS should separate proof-of-play from proof-of-display.
+1. Build or download the Tizen player (`.wgt`)
+   - From SDK / player repo build, **or**
+   - Control Panel → **Download Players → Samsung** on your hosted CMS
+2. Install on the display:
+   - URL Launcher, or
+   - Tizen Studio Device Manager, or
+   - USB sideload
+3. On first boot, choose **orientation**
+4. Enter the **CMS URL**
+   - Hosted CMS: use that CMS’s public HTTPS origin
+   - Local testing: use your PC LAN IP — never `localhost`
+5. Confirm the player reaches pairing / brand idle
+6. Pair with the 6-character code in the Control Panel
+7. Publish a small image + video playlist and confirm playback
+8. Record **model + firmware** for certification notes
 
-Capability examples:
+## Certification tests for Tizen
 
-```txt
-proof.play
-proof.display
-proof.screenshot
-proof.failure
-proof.audit_export
-```
+Minimum tests per model + firmware:
 
-Proof-of-play means the player attempted to play the content.
+- [ ] Boot to intro / CMS setup / pairing UI
+- [ ] Orientation selection works (including Red A reselect)
+- [ ] CMS URL save rejects unreachable / invalid values
+- [ ] Pair with CMS
+- [ ] `device.info.get` returns model + firmware
+- [ ] `device.info.getCapabilities` looks correct
+- [ ] Image playlist playback
+- [ ] Video playlist playback (H.264)
+- [ ] Image ↔ video transitions without black gaps
+- [ ] Widget `.zip` / `.wgt` playback
+- [ ] Offline / cached replay after disconnect
+- [ ] Reboot + resume
+- [ ] Screenshot capture (requires firmware **1080+**)
+- [ ] On/off timer (if capability supported)
+- [ ] Portrait orientation (if used)
 
-Proof-of-display means there is evidence the content was actually visible on screen.
+## Related docs
 
-On Tizen, proof-of-display may require screenshot support, display feedback or another verification method.
-
-Recommended proof event:
-
-```json
-{
-  "type": "proof.play",
-  "contentId": "promo_video_001",
-  "playlistId": "lunch_menu",
-  "os": "tizen",
-  "model": "QM43C",
-  "firmware": "7.0",
-  "startedAt": "2026-01-01T10:00:00.000Z",
-  "durationMs": 15000
-}
-```
-
-## Synchronisation
-
-Tizen synchronisation should be tested carefully.
-
-Track support for:
-
-- Sync group
-- Master/follower
-- Start at timestamp
-- Drift measurement
-- Drift correction
-- Video wall mapping
-- Bezel compensation
-- Approximate sync
-- Frame-accurate sync, if available
-- Recovery after screen drop-off
-
-Capability examples:
-
-```txt
-sync.group
-sync.master
-sync.follower
-sync.start_at
-sync.drift
-sync.drift_correction
-sync.wall
-sync.panel_mapping
-sync.bezel_compensation
-```
-
-Recommended tests:
-
-- Two-screen start
-- Multi-screen start
-- Start at timestamp
-- Network jitter
-- One screen drop-off
-- Rejoin group
-- Drift measurement
-- Video wall playback
-
-## Security considerations
-
-Tizen support should follow TomorrowOS security principles.
-
-Security-sensitive areas include:
-
-- Local APIs
-- Remote commands
-- Device control
-- Package handling
-- Asset downloads
-- Screenshots
-- Logs
-- Credentials
-- Access tokens
-- Customer data
-- Proof data
-
-Do not expose unsafe or unauthenticated device-control functions.
-
-Do not log secrets or credentials.
-
-Do not mark unsupported or unsafe features as supported.
-
-## Certification tests
-
-Minimum Tizen certification tests should include:
-
-- Device info
-- Firmware info
-- JPG playback
-- PNG playback
-- MP4 H.264 playback
-- Unsupported video fallback
-- Image to image transition
-- Image to video transition
-- Video to image transition
-- Video to video transition
-- Widget load
-- Widget timeout fallback
-- ZIP package validation, if supported
-- Asset download
-- Checksum validation
-- Partial download rejection
-- Atomic playlist activation
-- Offline cached playback
-- Last known good recovery
-- Heartbeat telemetry
-- Playback error telemetry
-- Proof-of-play event
-- Screenshot test, if supported
-- Display power test, if supported
-- Brightness test, if supported
-- Sync test, if supported
-- Security boundary review
-
-## Example capability record
-
-```json
-{
-  "feature": "playback.video.h264",
-  "os": "tizen",
-  "status": "firmware-dependent",
-  "testedModels": ["QM43C"],
-  "testedFirmware": ["Tizen 7.0"],
-  "runtime": "browser",
-  "source": "tested",
-  "notes": "Works in tested conditions. Playback should still be validated per model, firmware and content profile.",
-  "fallback": "Use fallback image if video preflight fails."
-}
-```
-
-## Known gaps to investigate
-
-Tizen support should continue investigating:
-
-- Web engine differences by Tizen version
-- Video codec support by model
-- H.265 support by model
-- Large file playback limits
-- Storage limits
-- Screenshot availability
-- Power control availability
-- App restart behaviour
-- ZIP extraction feasibility
-- Local package mounting
-- Native bridge requirements
-- Sync accuracy
-- Offline package behaviour
-- Firmware update impact
+- `docs/api/overview.md` — command surface
+- `docs/guides/black-gap-playback.md` — Tizen transition behaviour
+- `docs/guides/widget-zip-packages.md` — widget zip handling
+- `docs/guides/assets-and-atomic-activation.md` — media cache / publish flow
+- `@tomorrowos/sdk` `PLAYER_INSTALL.md` — install and pairing steps
 
 ## Goal
 
-The goal is for TomorrowOS to support Samsung Tizen in a way that is practical, honest and useful for real signage deployments.
-
-Tizen should be treated as a first-class platform, but support must be proven by model, firmware and runtime.
-
-One API.
-
-Honest capability mapping.
-
-Safe fallback behaviour.
+Document Tizen as it behaves in real deployments: what TomorrowOS supports now, how to set CMS URL and orientation on the panel, and which install paths are production-ready.

@@ -1,404 +1,205 @@
-# Black Gap and Playback Failure Handling
+# Black Gap and Playback Transitions
 
-Black gaps are one of the most common and frustrating issues in digital signage.
+A black gap is a brief (or stuck) black / blank / frozen frame when the player changes content.
 
-A black gap happens when the screen briefly or permanently shows black, blank, frozen or broken content during playback or content changeover.
+TomorrowOS treats black gaps as a **player-owned** failure mode. The CMS (`@tomorrowos/sdk`) publishes a verified policy; the **Tizen** and **BrightSign** players keep the current picture on screen until the next item is ready, then hand off.
 
-TomorrowOS treats black gaps as a first-class failure mode, not just a visual glitch.
-
-## Why black gaps happen
-
-Black gaps can happen when:
-
-- The next image is not loaded yet
-- The next video has not decoded its first frame
-- A video codec is unsupported
-- A widget takes too long to load
-- A ZIP package is missing its entrypoint
-- A playlist changes before new content is ready
-- The browser engine reloads
-- The device runs out of memory
-- The screen loses network access
-- A content download is incomplete
-- A CMS player crashes
-- A transition is triggered too early
-- A video wall screen drops out of sync
-- A platform handles media differently than expected
-
-TomorrowOS should aim to prevent these issues wherever possible.
+This guide describes **what the shipped players do today** for image and video transitions — not a fictional transition API.
 
 ## Core principle
 
-The core principle is simple:
+> Never take good content off screen until the next content is ready.
 
-> Never remove good content from screen until the next content is ready.
+Shared player pattern:
 
-This means TomorrowOS should avoid switching to the next item until it has been validated, loaded, decoded or staged safely.
+1. Two HTML **content layers** (front / back). Next item mounts on the back while the front stays visible.
+2. Image and video handoffs use an **instant** layer swap (not a fade). Opacity crossfade is reserved for widgets/web.
+3. Video often lives on a **hardware plane** (Tizen AVPlay / BrightSign `roVideoPlayer`). The player bridges HTML ↔ hardware so neither plane exposes black between items.
+4. Media is **cached locally** before play (see `assets-and-atomic-activation.md`).
 
-## Transition types
+This guide covers only:
 
-TomorrowOS should track and test every major transition pair.
-
-| Transition | Risk |
+| Case | Meaning |
 | --- | --- |
-| Image to image | Low risk, but still needs preload |
-| Image to video | First-frame and codec risk |
-| Video to image | Timing and decoder release risk |
-| Video to video | High risk, decoder and first-frame issues |
-| Image to widget | Widget load and entrypoint risk |
-| Widget to image | Runtime cleanup risk |
-| Video to widget | Decoder release and widget load risk |
-| Widget to video | Widget cleanup and first-frame risk |
-| Playlist to playlist | Atomic activation risk |
-| Zone to zone | Partial layout or timing risk |
+| **Image → image** | Next item is another image |
+| **Image → video** | Image hands off to video |
+| **Video → image** | Video hands off to image |
+| **Video → video** | Next item is another video |
+| **Loops** | Single image, single video, multi-item image/video playlists |
 
-## Black-frame-safe transition
+---
 
-A black-frame-safe transition should:
+## Shared mechanisms (both players)
 
-1. Keep the current content visible
-2. Preload the next item
-3. Validate the next item can render
-4. Confirm the first frame if the next item is video
-5. Confirm the entrypoint if the next item is a widget
-6. Switch only when the next item is ready
-7. Fall back if the next item fails
-8. Log the failure
-9. Continue playback using last known good content where possible
-
-Example:
-
-```ts
-await tomorrow.transitions.execute({
-  from: "current",
-  to: "next",
-  mode: "black-frame-safe",
-  preload: true,
-  requireFirstFrame: true,
-  fallback: "/assets/fallback.jpg",
-  timeoutMs: 3000
-})
-```
-
-## Playback preflight
-
-Before content is played, TomorrowOS should run preflight checks.
-
-Preflight may include:
-
-- File exists
-- File is fully downloaded
-- File checksum matches
-- File type is allowed
-- Codec is supported
-- Image dimensions are safe
-- Video resolution is safe
-- Duration is known
-- Widget entrypoint exists
-- Package manifest is valid
-- Required permissions are available
-- Fallback content exists
-- Storage is available
-- Runtime capability is supported
-
-Example:
-
-```ts
-const result = await tomorrow.preflight.validate({
-  type: "video",
-  src: "/assets/promo.mp4",
-  fallback: "/assets/fallback.jpg"
-})
-
-if (result.ok) {
-  await tomorrow.playback.play({
-    type: "video",
-    src: "/assets/promo.mp4",
-    transition: "black-frame-safe"
-  })
-} else {
-  await tomorrow.playback.play({
-    type: "image",
-    src: "/assets/fallback.jpg"
-  })
-}
-```
-
-## Image playback handling
-
-Image playback should account for:
-
-- Format support
-- File size
-- Pixel dimensions
-- Aspect ratio
-- Rotation
-- Scaling mode
-- Transparency
-- Memory pressure
-- Preload behaviour
-- Corrupt image files
-- Fallback image availability
-
-Example capability checks:
-
-```txt
-playback.image.jpg
-playback.image.png
-playback.image.webp
-playback.image.svg
-playback.image.gif
-playback.image.transparency
-playback.image.large_file
-playback.image.scaling
-```
-
-## Video playback handling
-
-Video playback is one of the highest-risk areas.
-
-TomorrowOS should account for:
-
-- Codec support
-- Container support
-- Resolution
-- Bitrate
-- Frame rate
-- Duration
-- Audio
-- Muted autoplay
-- Hardware decoding
-- Software decoding
-- First-frame readiness
-- Looping behaviour
-- Decoder failure
-- Memory pressure
-- Black frame at start
-- Black frame at end
-- Corrupt video files
-
-Example capability checks:
-
-```txt
-playback.video.mp4
-playback.video.h264
-playback.video.h265
-playback.video.vp9
-playback.video.av1
-playback.video.webm
-playback.video.first_frame
-playback.video.looping
-playback.video.hardware_decode
-playback.video.muted_autoplay
-```
-
-## Widget playback handling
-
-Widgets are risky because they may rely on HTML, CSS, JavaScript, fonts, network calls or package files.
-
-TomorrowOS should account for:
-
-- Entrypoint exists
-- JavaScript support
-- CSS support
-- Font loading
-- External network calls
-- Local asset references
-- Timeout handling
-- Runtime errors
-- Memory pressure
-- Widget crash detection
-- Widget fallback content
-- Reload behaviour
-- Security restrictions
-
-Example capability checks:
-
-```txt
-playback.widget
-playback.widget.entrypoint
-playback.widget.timeout
-playback.widget.local_assets
-playback.widget.external_network
-playback.widget.runtime_errors
-playback.widget.fallback
-```
-
-## Playlist playback handling
-
-Playlist changes can create black gaps if new content is activated too early.
-
-TomorrowOS should support:
-
-- Playlist validation
-- Asset staging
-- Schedule validation
-- Zone validation
-- Fallback rules
-- Atomic playlist activation
-- Last known good playlist
-- Rollback on failed activation
-- Proof-of-play continuity
-- Offline playlist behaviour
-
-Example:
-
-```ts
-await tomorrow.playback.setPlaylist(playlist, {
-  activation: "atomic",
-  fallback: "last-known-good",
-  validateBeforeActivation: true
-})
-```
-
-## Atomic activation
-
-Atomic activation means content should only switch once all required files and rules are ready.
-
-A playlist should not become active if:
-
-- Some assets are missing
-- Some downloads are incomplete
-- Checksums fail
-- A required widget package fails validation
-- A fallback is missing
-- The device lacks required capabilities
-- Storage is too low
-- The schedule is invalid
-
-Example:
-
-```ts
-await tomorrow.assets.stage(playlist.assets)
-
-const validation = await tomorrow.playback.validatePlaylist(playlist)
-
-if (validation.ok) {
-  await tomorrow.playback.activatePlaylist(playlist.id, {
-    mode: "atomic"
-  })
-} else {
-  await tomorrow.playback.restoreLastKnownGood()
-}
-```
-
-## Last known good content
-
-Every signage device should have safe content it can return to.
-
-TomorrowOS should support:
-
-- Last known good image
-- Last known good playlist
-- Last known good widget package
-- Default fallback image
-- Emergency fallback
-- Offline fallback
-- Failed update rollback
-
-Example:
-
-```ts
-await tomorrow.playback.restoreLastKnownGood()
-```
-
-## Failure events
-
-When playback fails, TomorrowOS should log structured events.
-
-Example:
-
-```json
-{
-  "type": "playback.failure",
-  "contentId": "promo_video",
-  "reason": "first_frame_timeout",
-  "os": "tizen",
-  "model": "QM43C",
-  "firmware": "7.0",
-  "fallbackUsed": true,
-  "timestamp": "2026-01-01T10:00:00.000Z"
-}
-```
-
-## Failure reasons
-
-Common failure reasons may include:
-
-```txt
-asset_missing
-asset_checksum_failed
-asset_partial_download
-unsupported_codec
-unsupported_file_type
-first_frame_timeout
-widget_entrypoint_missing
-widget_timeout
-widget_runtime_error
-package_manifest_invalid
-storage_full
-memory_pressure
-network_unavailable
-transition_timeout
-sync_failed
-unknown_runtime_error
-```
-
-## Proof and black gaps
-
-Proof-of-play should not simply mean the player attempted to play content.
-
-TomorrowOS should separate:
-
-| Type | Meaning |
+| Mechanism | Role |
 | --- | --- |
-| Proof-of-play | The player attempted to play the item |
-| Proof-of-display | There is evidence the item actually appeared |
-| Proof-of-failure | The item failed and fallback was used |
-| Screenshot proof | Visual evidence where supported |
-| Event proof | Timestamped playback and failure records |
+| Dual content layers | Mount next on back; keep front visible; then swap |
+| Instant swap | Image/video: no fade that could flash the black background |
+| Image decode warmup | Off-DOM decode pool at playlist start |
+| Image prefetch | When the **next** item is an image and the playlist has **more than one** item, mount it on the back layer early |
+| Local cache | Play from device storage, not a live network pull at cut time |
 
-This is important because a CMS may report that content played even if the screen was black.
+---
 
-## Certification tests
+## Image → image
 
-Every supported OS, model and firmware combination should be tested for black-gap handling.
+### Tizen
 
-Minimum tests:
+1. While the current image is on screen, the player **prefetches** the next image onto the back layer (multi-item only).
+2. At advance time it **consumes** that prefetch and does an **instant** layer swap — the next image is already painted under the previous one.
+3. If prefetch was missed (cold path), it mounts on the back layer (using decode warmup when available), then instant-swaps.
 
-- Image to image
-- Image to video
-- Video to image
-- Video to video
-- Image to widget
-- Widget to image
-- Playlist to playlist
-- Failed video codec fallback
-- Missing image fallback
-- Widget timeout fallback
-- Partial asset download rejection
-- Failed ZIP package rollback
-- Offline playback continuation
-- Last known good recovery
-- Screenshot or proof event after playback
+### BrightSign
 
-## API design goals
+Same dual-layer + prefetch + instant-swap path as Tizen. No `roVideoPlayer` involvement. Prefetch logs as image→image handoff prep; decode warmup feeds `mountImageInLayer`.
 
-The black-gap and playback handling APIs should be:
+---
 
-- Safe by default
-- Easy to use
-- Capability-aware
-- Honest about unsupported features
-- Designed for real signage deployments
-- Built around fallback and recovery
-- Clear in telemetry and proof events
-- Consistent across operating systems
+## Image → video
+
+### Tizen
+
+1. Keep the **image on the front** layer.
+2. Mount video on the **back** (prefer **dual AVPlay** via `avplaystore` when available; else single `webapis.avplay`; else HTML `<video>`).
+3. Wait for **first-frame readiness** (AVPlay: `oncurrentplaytime` or a short timeout; HTML: `playing` + paint frames).
+4. **Instant** layer swap — only then clear the previous image.
+5. With AVPlay, HTML is made transparent so the hardware video plane shows through.
+
+### BrightSign
+
+Video uses dual **`roVideoPlayer`** slots (not HTML HWZ for the normal playlist path).
+
+1. Keep the HTML image visible.
+2. Start the next `roVideoPlayer` with a **hide-HTML delay** (~300ms): play the file first, then fade the HTML widget alpha to 0 so the video plane covers the old image.
+3. After a short JS delay (~420ms), **instant** layer-swap the HTML bookkeeping under the already-hidden widget.
+4. Gap cover = HTML image stays up until the video plane is actually playing, then HTML is hidden.
+
+---
+
+## Video → image
+
+### Tizen
+
+1. During video (multi-item), **prefetch** the next image onto the back layer while AVPlay is still running.
+2. Dual AVPlay advances on **`onstreamcompleted`** (not a wall-clock guess). For video → image it starts the image path **without** stopping AVPlay first — the last video frame stays up.
+3. Consume prefetch (or cold-mount) → **instant** layer swap so the image is in the HTML stack.
+4. Then hold the video with **`setVideoStillMode("true")`**, wait for HTML paint (~2 frames + short delay), and only then stop AVPlay / dual players.
+
+### BrightSign
+
+1. Prefetch next image on the back layer while `roVideoPlayer` is still the active element (HTML stop is skipped while ro-video is active).
+2. Instant-swap so the **HTML image is visible**.
+3. Then **`handoffBrightSignRoVideoToHtml`**: wait for paint frames + ~120ms, restore HTML alpha, and `StopClear` both ro-video slots.
+4. Gap cover = image on screen **before** the video plane is torn down.
+
+---
+
+## Video → video
+
+### Tizen (primary: dual AVPlay)
+
+When `webapis.avplaystore` is available:
+
+1. Two AVPlay instances ping-pong on **`onstreamcompleted`**.
+2. Completed slot: **`setVideoStillMode("true")`** then `stop()` — last frame frozen.
+3. Other slot: `open` → `prepareAsync` → still mode off → `play()`.
+4. **No** HTML layer remount for mid-playlist video → video — the cut stays on the hardware plane.
+5. Next file is warm-cached ahead of time.
+
+Fallback paths:
+
+- **Single AVPlay** — soft remount / preserve visual where possible; wait for first-frame gate; instant layer swap after mount.
+- **HTML `<video>`** — start the next item ~420ms early (`VIDEO_TO_VIDEO_LEAD_MS`), mount on back until `playing`, then instant swap.
+
+### BrightSign
+
+1. Playlist video uses two **`roVideoPlayer`** slots with a **rising z-index**.
+2. Next clip plays on the other slot at a higher z; the previous slot is **not** cleared while a ro-video remains active.
+3. HTML stays alpha 0 across the cut (`hideHtmlDelayMs: 0` when already on ro-video).
+4. Instant HTML layer swap is bookkeeping only — the visible cut is slot overlap on the video plane.
+
+---
+
+## Loops
+
+### Single image loop
+
+One image, repeating.
+
+| Platform | Behaviour |
+| --- | --- |
+| **Tizen** | On wrap, **no remount / no swap** — only reset the dwell timer. Prefetch is skipped (`items.length <= 1`). |
+| **BrightSign** | Same: detect same single-image loop and keep the existing image on screen. |
+
+No transition → no black-gap opportunity.
+
+### Single video loop
+
+One video, repeating.
+
+| Platform | Behaviour |
+| --- | --- |
+| **Tizen (dual AVPlay)** | On stream complete, seamless-switch to the **other** slot with the **same** file (still-mode bridge), or **`replayVideoInPlace`** (`seekTo(0)` + play) when in-place loop applies. |
+| **Tizen (HTML)** | Element may use native `loop`; playlist timer can also seek/replay in place. |
+| **BrightSign** | Mount with `AlwaysLoop` when the playlist has one item; on timer wrap, **`replayVideoInPlace`** on the **same** slot (`seekMs: 0`, no HTML handoff). Full remount only if in-place replay fails. |
+
+Goal: avoid tearing down the decoder every lap.
+
+### Multi-item image / video loops
+
+Playlist with two or more images and/or videos, cycling.
+
+Shared behaviour on both players:
+
+1. One lap uses a **frozen** item list; hot policy updates that change composition apply on wrap.
+2. Mid-loop **image → image** / **video → image**: image prefetch on the back layer is the main anti-gap tool.
+3. Mid-loop **video → video**: platform dual-player path (AVPlay store / dual `roVideoPlayer`).
+4. Mid-loop **image → video**: keep image until video first frame / hide-HTML timing (platform-specific above).
+5. At **wrap to index 0**, prefetch for item 0 is cleared before restart — first item of the new lap may cold-mount; decode warmup and background cache still reduce risk.
+6. If composition changed on wrap, players take a full remount path instead of the in-place shortcuts.
+
+---
+
+## Quick reference
+
+| Transition | Tizen | BrightSign |
+| --- | --- | --- |
+| **Image → image** | Prefetch on back layer → instant swap | Same |
+| **Image → video** | Mount video → wait first frame → instant swap; AVPlay under transparent HTML | Play `roVideoPlayer` → delay hide HTML (~300ms) → swap (~420ms) |
+| **Video → image** | Prefetch image; still-mode hold; swap HTML; then stop AVPlay | Prefetch image; swap HTML; then stop ro-video + show HTML |
+| **Video → video** | Dual AVPlay + `setVideoStillMode` ping-pong | Dual `roVideoPlayer` + rising z-index overlap |
+| **Single image loop** | No remount | No remount |
+| **Single video loop** | Dual seamless / in-place seek | `AlwaysLoop` / same-slot replay |
+| **Multi-item loop** | Prefetch + dual video paths; wrap may cold-mount item 0 | Same pattern on ro-video + HTML layers |
+
+---
+
+## What the SDK does (and does not)
+
+`@tomorrowos/sdk` does **not** run these transitions. It:
+
+- Verifies media reachability on publish
+- Sends `device.content.setPolicy` with playlist URLs / hashes
+- Lets the player cache and play
+
+Black-gap safety is implemented **inside** the Tizen and BrightSign player apps.
+
+---
+
+## How to validate
+
+On a real panel, publish playlists that exercise:
+
+- [ ] Image → image (two different images)
+- [ ] Image → video
+- [ ] Video → image
+- [ ] Video → video (two different videos)
+- [ ] Single image loop (long dwell)
+- [ ] Single video loop
+- [ ] Mixed multi-item loop (image / video / image / video …) for several full cycles
+
+Watch for black flashes at cuts and at loop wrap. Certify per model / firmware before calling a transition path production-safe.
 
 ## Goal
 
-TomorrowOS should make black gaps harder to create and easier to diagnose.
-
-The goal is not just to play content.
-
-The goal is to keep the screen showing the right content, at the right time, with clear recovery when something goes wrong.
+Keep the last good frame on screen until the next item can display — using dual HTML layers for images, and platform dual video players (AVPlay / `roVideoPlayer`) for video — so playlists look continuous on Tizen and BrightSign.

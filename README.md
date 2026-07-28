@@ -9,8 +9,8 @@
 
 <p align="center">
   <a href="https://tomorrowos.org/about">About</a> ·
-  <a href="https://docs.tomorrowos.org/docs">Documentation</a> ·
-  <a href="https://tomorrowos.org/docs/quickstart">Quickstart</a> ·
+  <a href="./docs/guides/beginners-guide.md">Documentation</a> ·
+  <a href="./docs/guides/beginners-guide.md">Quickstart</a> ·
   <a href="https://github.com/tomorrowos/tomorrowos/discussions">Discussions</a>
 </p>
 
@@ -72,7 +72,7 @@ tos.events.on('playback.started', (e) => console.log(e.deviceId, e.itemId))
 
 This gives you a working digital signage deployment. Everything after this ie. scheduling, policies, multi-tenancy — builds on the same three primitives: **devices, content, events**.
 
-→ [Full quickstart](https://tomorrowos.org/quickstart) · [API reference](https://docs.tomorrowos.org)
+→ [Full quickstart](./docs/guides/beginners-guide.md) · [API reference](./docs/api/overview.md)
 
 ## How it works
 
@@ -134,11 +134,11 @@ You keep your source, your branding and your customer relationships. TomorrowOS 
 
 | | |
 | --- | --- |
-| [Getting started](https://tomorrowos.org/docs/getting-started) | Install, pair your first screen |
-| [SDK and APIs](https://tomorrowos.org/docs/sdk) | Full server-side reference |
-| [Platform support](https://tomorrowos.org/docs/platforms) | Version matrix and known quirks |
-| [Deployment](https://tomorrowos.org/docs/deployment) | Self-hosting and production notes |
-| [Roadmap](https://tomorrowos.org/docs/roadmap) | What's next |
+| [Getting started](./docs/guides/beginners-guide.md) | Install, pair your first screen |
+| [SDK and APIs](./docs/api/overview.md) | Full server-side reference |
+| [Platform support](./docs/testing/certification.md) | Version matrix and known quirks |
+| [Deployment](./docs/guides/developer-guide.md) | Self-hosting and production notes |
+| [Roadmap](./ROADMAP.md) | What's next |
 | [Changelog](./CHANGELOG.md) | What changed |
 
 ## Community and support

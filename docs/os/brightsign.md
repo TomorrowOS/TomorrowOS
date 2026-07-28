@@ -1,848 +1,244 @@
 # BrightSign OS
 
-This page documents TomorrowOS support considerations for BrightSign OS-based digital signage media players.
+This page documents **how TomorrowOS works on BrightSign today**, including deploy requirements, supported commands, playback behaviour, and known field issues.
 
-BrightSign is one of the most widely used dedicated digital signage player platforms. TomorrowOS should treat BrightSign OS as a first-class signage operating system, especially for reliable playback, local storage, synchronisation, proof events and managed signage deployments.
-
-Support should always be mapped by player model, firmware version, runtime, API access and whether a JavaScript, BrightScript or bridge-based approach is being used.
+BrightSign is a first-class TomorrowOS player platform alongside Samsung Tizen. Support still depends on **player series**, **BrightSignOS (BOS) firmware**, storage layout and display setup — always verify on the real model before claiming production support.
 
 ## Purpose
 
-The purpose of this page is to track how TomorrowOS should approach BrightSign OS support across:
+This page covers:
 
-- Device identification
-- Runtime capability
-- HTML/widget support
-- Image playback
-- Video playback
-- ZIP/package handling
-- Asset storage
-- Display control
+- How the TomorrowOS BrightSign player boots
+- Device identification and capabilities
+- Content policy / playback behaviour
+- Widget and package handling
+- Display controls (reboot, on/off timer)
 - Screenshots
-- Telemetry
-- Proof-of-play
-- Proof-of-display
-- Synchronisation
-- Security
-- Certification testing
+- Known issues found in testing (including Series 3 / 4K H.264)
+- Deploy and certification checklist
 
 ## Core principle
 
-BrightSign support should be treated as highly capable, but not universal.
+> BrightSign is capable, but series + firmware matter.
 
-A feature may depend on:
+A feature may work on one series / BOS version and fail on another. Prefer:
 
-- BrightSign player model
-- BrightSign OS version
-- Firmware version
-- Runtime type
-- HTML widget support
-- JavaScript API support
-- BrightScript support
-- Storage configuration
-- Network configuration
-- Permissions
-- Whether a bridge or native layer is available
-- Whether the device is being used as a standalone player, CMS player or synchronised video wall player
+1. Check `device.info.getCapabilities`
+2. Test the real playlist on that model + firmware
+3. Only then mark the combination production-safe
 
-Every BrightSign feature should be validated through the Capability API before use.
+## Runtime architecture
 
-Example:
+TomorrowOS on BrightSign is an HTML player launched by BrightScript:
 
-```ts
-const support = await tomorrow.capabilities.check("sync.wall")
+| Piece | Role |
+| --- | --- |
+| `autorun.brs` | Creates `roHtmlWidget`, enables Node.js + BrightSign JS objects, hosts dual `roVideoPlayer` slots |
+| `index.html` + `main.js` | Player UI, pairing, policy, playlist logic |
+| `platform-brightsign.js` | Device info, reboot, download, ZIP extract, display mute, `roVideoPlayer` bridge |
+| `config.js` | Boot config: `cmsEndpoint`, `orientation` |
 
-if (support.status === "supported") {
-  await tomorrow.sync.joinGroup("wall_01")
-}
+Important boot details:
+
+- Node.js must be enabled (`nodejs_enabled: true`)
+- BrightSign JS objects must be enabled (`brightsign_js_objects_enabled: true`)
+- Storage uses the SD card (`storage_path: "SD:"`)
+- There is a deliberate **~10 second** delay before `Show()` — black screen during that window is normal
+- Orientation and CMS URL come from `config.js` (no on-device setup UI in the current BrightSign build)
+
+## Configure `config.js`
+
+BrightSign builds do **not** show an on-device CMS / orientation setup screen. You must set these values in `config.js` before the player can connect:
+
+```js
+window.TOMORROWOS_CONFIG = {
+  cmsEndpoint: "http://192.168.1.105:3000/",
+  orientation: "landscape" // landscape | portrait-right | portrait-left
+};
 ```
 
-## Recommended support status approach
+| Field | Purpose |
+| --- | --- |
+| `cmsEndpoint` | CMS HTTP(S) URL the player connects to (converted to `ws://` / `wss://` at runtime) |
+| `orientation` | Screen orientation baked into the player bundle |
 
-BrightSign features should usually start as:
+### Hosted CMS download
 
-```txt
-unknown
+If you download the BrightSign player zip from a **hosted CMS** (for example Control Panel → Download Players), `cmsEndpoint` is **filled automatically** with that CMS address. You usually only need to confirm `orientation`.
+
+### Local testing
+
+Do **not** put `localhost` or `127.0.0.1` in `cmsEndpoint`.
+
+The BrightSign player runs on the panel, not on your laptop. `localhost` would point at the player itself and pairing / WebSocket will fail.
+
+For local testing, use your computer’s **LAN IP**, for example:
+
+```js
+cmsEndpoint: "http://192.168.1.105:3000/"
 ```
 
-Then move to one of the following only after evidence:
-
-```txt
-supported
-partial
-model-dependent
-firmware-dependent
-requires-bridge
-unsupported
-unsafe
-```
-
-Do not mark a BrightSign capability as `supported` unless it has been tested on a real player model and firmware version.
+The player and CMS must be on a reachable network path (same LAN or a public/tunnel URL).
 
 ## Device identification
 
-TomorrowOS should attempt to identify:
+`device.info.get` is backed by `BSDeviceInfo`.
 
-- Manufacturer
-- Player model
-- Firmware version
-- BrightSign OS version
-- Serial number, where available
-- Storage device
-- Network state
-- Runtime type
-- App or player version
-- Display output resolution
-- Display orientation
-- Connected display state, where available
+Typical fields:
 
-Example capability names:
-
-```txt
-device.info
-device.model
-device.firmware
-device.os_version
-device.serial
-device.storage
-device.network
-device.runtime
-device.output_resolution
+```json
+{
+  "online": true,
+  "deviceId": "...",
+  "model": "XT1144",
+  "firmware": "9.1.140",
+  "serialNumber": "..."
+}
 ```
 
-Example API:
+Use model + firmware together when diagnosing playback or codec issues.
+
+## Capability map
+
+On a real BrightSign player runtime, `device.info.getCapabilities` currently reports:
+
+| Command | Typical status |
+| --- | --- |
+| `device.info.get` | supported |
+| `device.power.reboot` | supported |
+| `device.content.setPolicy` | supported |
+| `device.content.clear` | supported |
+| `device.telemetry.captureScreen` | supported |
+| `device.display.setOnOffTimer` | supported only if display mute API is available |
+
+Always trust the live capability response over this table.
+
+## Content and playback
+
+Playback is policy-driven:
 
 ```ts
-const device = await tomorrow.device.info()
-```
-
-Example response:
-
-```json
-{
-  "manufacturer": "BrightSign",
-  "os": "brightsign",
-  "osVersion": "example-version",
-  "model": "HD226",
-  "firmware": "example-firmware",
-  "runtime": "html-widget",
-  "storage": "sd-card"
-}
-```
-
-## Runtime considerations
-
-BrightSign deployments may use different runtime approaches.
-
-Possible runtime types:
-
-- HTML widget runtime
-- BrightScript runtime
-- CMS player runtime
-- Local presentation runtime
-- JavaScript API-assisted runtime
-- Bridge-assisted runtime
-
-TomorrowOS should document which runtime is being tested.
-
-Capability support may change significantly depending on runtime.
-
-Example:
-
-```json
-{
-  "feature": "display.reboot",
-  "os": "brightsign",
-  "status": "requires-bridge",
-  "runtime": "html-widget",
-  "notes": "May require BrightScript or native control path depending on deployment model."
-}
-```
-
-## JavaScript and BrightScript considerations
-
-BrightSign may expose functionality through different layers.
-
-TomorrowOS should track whether a feature is available through:
-
-- Standard browser APIs
-- BrightSign JavaScript APIs
-- BrightScript
-- CMS-specific player APIs
-- Native bridge
-- Not available
-
-Capability records should clearly state the access path.
-
-Example:
-
-```json
-{
-  "feature": "telemetry.logs",
-  "os": "brightsign",
-  "status": "requires-bridge",
-  "accessPath": "brightscript",
-  "notes": "Log access may require BrightScript integration rather than standard browser APIs."
-}
-```
-
-## Browser and HTML behaviour
-
-BrightSign HTML/widget support should be tested by model and firmware.
-
-Track support for:
-
-- JavaScript support
-- CSS support
-- HTML5 video support
-- Web storage support
-- Canvas support
-- WebGL support
-- WebSocket support
-- Fetch/XHR support
-- Autoplay behaviour
-- Media decoder behaviour
-- Memory limits
-- Runtime crash behaviour
-
-Relevant capability names:
-
-```txt
-runtime.javascript
-runtime.css
-runtime.html5_video
-runtime.canvas
-runtime.webgl
-runtime.websocket
-runtime.fetch
-runtime.local_storage
-runtime.media_autoplay
-runtime.memory_limit
-```
-
-## Image playback
-
-BrightSign image support should be tested by model and firmware.
-
-Track support for:
-
-- JPG
-- PNG
-- WebP
-- SVG
-- GIF
-- Transparency
-- Large image files
-- High-resolution images
-- Aspect ratio scaling
-- Portrait rotation
-- Landscape rotation
-- Memory pressure behaviour
-
-Capability examples:
-
-```txt
-playback.image.jpg
-playback.image.png
-playback.image.webp
-playback.image.svg
-playback.image.gif
-playback.image.transparency
-playback.image.large_file
-playback.image.scaling
-```
-
-Recommended tests:
-
-- Load simple JPG
-- Load simple PNG
-- Load transparent PNG
-- Load large image
-- Load unsupported image type
-- Switch image to image
-- Switch image to video
-- Confirm fallback image works
-
-## Video playback
-
-Video playback is a major BrightSign strength, but support should still be tested by model, firmware and file profile.
-
-Track support for:
-
-- MP4
-- H.264
-- H.265
-- WebM
-- VP9
-- AV1
-- MOV
-- Resolution limits
-- Bitrate limits
-- Frame rate limits
-- Muted autoplay
-- Looping
-- First-frame readiness
-- Hardware decoding
-- Decoder failure
-- Audio behaviour
-- Black frame at start
-- Black frame at end
-- Multi-video playback, where available
-
-Capability examples:
-
-```txt
-playback.video.mp4
-playback.video.h264
-playback.video.h265
-playback.video.webm
-playback.video.vp9
-playback.video.av1
-playback.video.first_frame
-playback.video.looping
-playback.video.hardware_decode
-playback.video.muted_autoplay
-playback.video.multi_video
-```
-
-Recommended tests:
-
-- Play H.264 MP4
-- Play H.265 MP4, where supported
-- Play unsupported codec
-- Loop video
-- Switch image to video
-- Switch video to image
-- Switch video to video
-- Confirm fallback after decoder failure
-- Confirm first-frame guard works
-- Confirm black-frame-safe transition works
-- Test large file playback
-- Test long-duration video playback
-
-## Black-gap handling
-
-TomorrowOS should test BrightSign for black gaps during content transitions.
-
-Transition pairs to test:
-
-```txt
-transition.image_to_image
-transition.image_to_video
-transition.video_to_image
-transition.video_to_video
-transition.image_to_widget
-transition.widget_to_image
-transition.video_to_widget
-transition.widget_to_video
-transition.playlist_to_playlist
-transition.zone_to_zone
-```
-
-BrightSign-specific risks may include:
-
-- Runtime handover between HTML and native playback
-- Media decoder reset
-- HTML widget load delay
-- Storage read delay
-- Unsupported file profile
-- Playlist activation before assets are ready
-- CMS-player-specific behaviour
-
-Recommended behaviour:
-
-- Keep previous content visible
-- Preload next content
-- Confirm first video frame
-- Confirm widget entrypoint
-- Use timeout
-- Fall back if content fails
-- Restore last known good content
-
-Example:
-
-```ts
-await tomorrow.transitions.execute({
-  mode: "black-frame-safe",
-  preload: true,
-  requireFirstFrame: true,
-  fallback: "/assets/fallback.jpg",
-  timeoutMs: 3000
+await tos.device(deviceId).sendCommand("device.content.setPolicy", {
+  policy: {
+    playlists: [
+      {
+        id: "lobby",
+        name: "Lobby",
+        items: [
+          { type: "image", url: "https://cdn.example.com/promo.jpg", durationMs: 8000 },
+          { type: "video", url: "https://cdn.example.com/loop.mp4" }
+        ]
+      }
+    ]
+  }
 })
 ```
 
-## Widget and HTML support
+BrightSign-specific playback notes:
 
-BrightSign widget support should be tested carefully.
-
-Track support for:
-
-- Local HTML
-- Local CSS
-- Local JavaScript
-- Fonts
-- External API calls
-- Local JSON files
-- Local images
-- Local videos
-- WebSocket connections
-- Timers
-- Animation performance
-- Runtime errors
-- Memory limits
-- Offline behaviour
-
-Capability examples:
-
-```txt
-playback.widget
-playback.widget.entrypoint
-playback.widget.local_assets
-playback.widget.external_network
-playback.widget.timeout
-playback.widget.runtime_errors
-playback.widget.fallback
-```
-
-Recommended tests:
-
-- Load simple widget
-- Load widget with local assets
-- Load widget with external API call
-- Load widget offline
-- Missing entrypoint
-- JavaScript error
-- Widget timeout
-- Widget fallback
-- Widget to image transition
-- Widget to video transition
-
-## ZIP and package handling
-
-BrightSign may be well suited for local package handling, but support still depends on the chosen runtime and access path.
-
-Capability examples:
-
-```txt
-package.zip
-package.manifest
-package.safe_extraction
-package.entrypoint
-package.rollback
-package.remove
-```
-
-Potential support status before testing:
-
-```txt
-requires-bridge
-```
-
-or:
-
-```txt
-unknown
-```
-
-Package handling should test:
-
-- Valid ZIP package
-- Invalid ZIP package
-- Missing manifest
-- Invalid manifest
-- Missing entrypoint
-- Unsafe path traversal
-- Unsupported file type
-- Oversized package
-- Package rollback
-- Package removal
-
-## Asset storage and cache
-
-BrightSign deployments often rely heavily on local storage.
-
-TomorrowOS should track support for:
-
-- Asset download
-- Local storage
-- SD card storage
-- Internal storage, where available
-- Cache size
-- Cache cleanup
-- Checksum validation
-- Partial download detection
-- Asset expiry
-- Offline playback
-- Last known good content
-- Atomic activation
-
-Capability examples:
-
-```txt
-asset.download
-asset.checksum
-asset.stage
-asset.atomic_activation
-asset.cleanup
-asset.expiry
-asset.storage.available
-asset.storage.pressure
-asset.partial_download_detection
-network.offline_cache
-```
-
-Recommended tests:
-
-- Download image
-- Download video
-- Interrupt download
-- Detect partial file
-- Validate checksum
-- Fill storage
-- Cleanup expired asset
-- Continue playback offline
-- Activate playlist atomically
-- Roll back failed activation
-- Test SD card removal or failure where safe
+- Images / UI use HTML layers
+- Normal playlist video uses dual **`roVideoPlayer`** slots (hardware video plane), not HTML `<video>` HWZ as the primary path
+- Black-gap avoidance keeps the previous picture up until the next item is ready — see `docs/guides/black-gap-playback.md`
+- Widgets (`.zip` / `.wgt`) download, extract locally and load in an iframe — see `docs/guides/widget-zip-packages.md`
+- Media is cached under `downloads/tomorrowos/` on the SD card
 
 ## Display control
 
-BrightSign display control may depend on device model, connected display, CEC support, serial control, network control or external integrations.
+### Reboot
 
-Track support for:
-
-- Power on
-- Power off
-- Reboot
-- Restart app
-- Brightness, where available
-- Volume
-- Mute
-- Input source, where available
-- Orientation
-- Output resolution
-- Connected display status
-- HDMI status
-- Temperature, where available
-- Usage hours, where available
-
-Capability examples:
-
-```txt
-display.power
-display.reboot
-display.restart_app
-display.brightness
-display.volume
-display.mute
-display.input
-display.orientation
-display.output_resolution
-display.hdmi_status
-display.temperature
-display.usage_hours
+```ts
+await tos.device(deviceId).sendCommand("device.power.reboot", {})
 ```
 
-Support should be marked based on tested access path.
+Uses `@brightsign/system` reboot. The player tries to save resume state before restarting.
 
-Possible statuses:
+### On / off timer
 
-```txt
-supported
-model-dependent
-firmware-dependent
-requires-bridge
-unsupported
-unknown
+```ts
+await tos.device(deviceId).sendCommand("device.display.setOnOffTimer", {
+  onOffTimer: { turnOnAt: "08:00", turnOffAt: "22:00" }
+})
 ```
 
-## Network
-
-BrightSign network support should track:
-
-- Online status
-- Offline status
-- IP address
-- MAC address, where available
-- DNS test
-- URL reachability
-- Captive portal detection
-- Reconnect detection
-- Network jitter
-- Offline playback behaviour
-
-Capability examples:
-
-```txt
-network.status
-network.ip_address
-network.mac_address
-network.dns_test
-network.url_test
-network.captive_portal
-network.reconnect
-network.offline_cache
-```
-
-Recommended tests:
-
-- Start online
-- Drop network
-- Continue cached playback
-- Reconnect
-- Retry failed download
-- Report offline event
-- Report reconnect event
-
-## Telemetry
-
-BrightSign telemetry should report what is happening on the player and runtime.
-
-Track support for:
-
-- Heartbeat
-- Current content
-- Current playlist
-- App version
-- Runtime version
-- Online/offline state
-- Playback errors
-- Package errors
-- Asset errors
-- Storage pressure
-- Memory pressure
-- Crash logs
-- Screenshots, where supported
-- Last successful proof-of-play
-
-Capability examples:
-
-```txt
-telemetry.heartbeat
-telemetry.current_content
-telemetry.current_playlist
-telemetry.app_version
-telemetry.runtime_version
-telemetry.playback_errors
-telemetry.package_errors
-telemetry.asset_errors
-telemetry.storage_pressure
-telemetry.memory_pressure
-telemetry.screenshot
-telemetry.logs
-```
+On BrightSign this is implemented as a **display mute / power-save style schedule** while the player stays connected. Capability is gated by whether the mute API is available.
 
 ## Screenshots
 
-Screenshot support should be treated carefully.
-
-It may be:
-
-```txt
-supported
-unsupported
-model-dependent
-firmware-dependent
-requires-bridge
-unsafe
-unknown
+```ts
+await tos.device(deviceId).sendCommand("device.telemetry.captureScreen", {})
 ```
 
-depending on player model, firmware and runtime path.
+BrightSign captures through the player screenshot path and returns image data to the CMS. Quality and coverage can still vary by series / firmware — certify on the target player.
 
-Screenshot capability examples:
+## Firmware and series guidance
 
-```txt
-telemetry.screenshot
-proof.screenshot
-proof.display
-```
+### Recommended baseline
 
-Security considerations:
+TomorrowOS BrightSign development currently expects players that can run:
 
-- Screenshots may contain customer data
-- Screenshots may contain pricing
-- Screenshots may contain internal content
-- Screenshots may reveal environment details
-- Screenshots should not be captured or transmitted without permission
+- `roHtmlWidget` with Node.js
+- BrightSign JS objects (`BSDeviceInfo`, etc.)
+- Modern Chromium behaviour used by current BOS releases for iframe / widget work
 
-## Proof-of-play and proof-of-display
+### Known issues: Series 3 video
 
-TomorrowOS should separate proof-of-play from proof-of-display.
+**Finding from field testing:**
 
-Capability examples:
+| Issue | Detail |
+| --- | --- |
+| Platform | BrightSign **Series 3** |
+| Video playback | Firmware must be upgraded to **9.1.140** (or newer in the 9.1 line) for reliable video playback |
+| 4K H.264 | Still a **hardware limit** on Series 3 — even on 9.1.140+, do not expect reliable 4K H.264 |
+| Guidance | Upgrade Series 3 to **9.1.140+**, then ship **1080p H.264** (not 4K) |
 
-```txt
-proof.play
-proof.display
-proof.screenshot
-proof.failure
-proof.audit_export
-```
+Practical rules:
 
-Proof-of-play means the player attempted to play the content.
+1. Check `device.info.get` for model + firmware before publishing video
+2. On Series 3 below **9.1.140**, upgrade firmware before relying on video playlists
+3. On Series 3 at **9.1.140+**, certify with **1080p H.264**
+4. Treat Series 3 **4K H.264** as unsupported hardware — not a TomorrowOS playlist bug
 
-Proof-of-display means there is evidence the content was actually visible on screen.
+## Deploy checklist
 
-On BrightSign, proof-of-display may require screenshot support, display feedback, output state or another verification method.
+1. Build the BrightSign bundle (`npm run build` in the BrightSign player repo), **or** download the player zip from your hosted CMS
+2. Confirm `cmsEndpoint` and `orientation` in `config.js`
+   - Hosted CMS download: CMS URL is usually auto-filled
+   - Local testing: use your PC LAN IP — never `localhost`
+3. Copy **all** files from the bundle to the **SD card root**
+4. Confirm only one `autorun.brs` exists (no competing BSN autorun artifacts)
+5. Full power-cycle the player
+6. Wait through the initial black sleep window
+7. Verify pairing / `device.hello` against your CMS
+8. Publish a small image + video playlist and confirm playback
+9. Record **model + firmware** for certification notes
 
-Recommended proof event:
+## Certification tests for BrightSign
 
-```json
-{
-  "type": "proof.play",
-  "contentId": "promo_video_001",
-  "playlistId": "lunch_menu",
-  "os": "brightsign",
-  "model": "HD226",
-  "firmware": "example-firmware",
-  "startedAt": "2026-01-01T10:00:00.000Z",
-  "durationMs": 15000
-}
-```
+Minimum tests per model + firmware:
 
-## Synchronisation
+- [ ] Boot to player UI / brand idle
+- [ ] Pair with CMS
+- [ ] `device.info.get` returns model + firmware
+- [ ] `device.info.getCapabilities` looks correct
+- [ ] Image playlist playback
+- [ ] Video playlist playback (1080p H.264; Series 3 requires firmware **9.1.140+**)
+- [ ] **4K H.264** playback (not expected on Series 3 — hardware limit; use 1080p there)
+- [ ] Image ↔ video transitions without black gaps
+- [ ] Widget `.zip` playback
+- [ ] Offline / cached replay after disconnect
+- [ ] Reboot + resume
+- [ ] Screenshot capture
+- [ ] On/off timer (if capability supported)
+- [ ] Portrait orientation (if used)
 
-BrightSign is commonly used in synchronised signage and video wall environments, but TomorrowOS should still test support carefully.
+## Related docs
 
-Track support for:
-
-- Sync group
-- Master/follower
-- Start at timestamp
-- Drift measurement
-- Drift correction
-- Video wall mapping
-- Bezel compensation
-- Approximate sync
-- Frame-accurate sync, where available
-- Recovery after player drop-off
-
-Capability examples:
-
-```txt
-sync.group
-sync.master
-sync.follower
-sync.start_at
-sync.drift
-sync.drift_correction
-sync.wall
-sync.panel_mapping
-sync.bezel_compensation
-```
-
-Recommended tests:
-
-- Two-player start
-- Multi-player start
-- Start at timestamp
-- Network jitter
-- One player drop-off
-- Rejoin group
-- Drift measurement
-- Video wall playback
-- Long-running sync test
-
-## Security considerations
-
-BrightSign support should follow TomorrowOS security principles.
-
-Security-sensitive areas include:
-
-- Local APIs
-- Remote commands
-- Device control
-- Package handling
-- Asset downloads
-- Screenshots
-- Logs
-- Credentials
-- Access tokens
-- Customer data
-- Proof data
-
-Do not expose unsafe or unauthenticated device-control functions.
-
-Do not log secrets or credentials.
-
-Do not mark unsupported or unsafe features as supported.
-
-## Certification tests
-
-Minimum BrightSign certification tests should include:
-
-- Device info
-- Firmware info
-- JPG playback
-- PNG playback
-- MP4 H.264 playback
-- Unsupported video fallback
-- Image to image transition
-- Image to video transition
-- Video to image transition
-- Video to video transition
-- Widget load
-- Widget timeout fallback
-- ZIP package validation, if supported
-- Asset download
-- Checksum validation
-- Partial download rejection
-- Atomic playlist activation
-- Offline cached playback
-- Last known good recovery
-- Heartbeat telemetry
-- Playback error telemetry
-- Proof-of-play event
-- Screenshot test, if supported
-- Display control test, if supported
-- Sync test, if supported
-- Security boundary review
-
-## Example capability record
-
-```json
-{
-  "feature": "sync.wall",
-  "os": "brightsign",
-  "status": "model-dependent",
-  "testedModels": ["HD226"],
-  "testedFirmware": ["example-firmware"],
-  "runtime": "html-widget",
-  "source": "tested",
-  "notes": "Sync behaviour should be validated per model, firmware, content profile and network environment.",
-  "fallback": "Use independent playback if sync cannot be guaranteed."
-}
-```
-
-## Known gaps to investigate
-
-BrightSign support should continue investigating:
-
-- JavaScript API coverage by firmware
-- BrightScript bridge requirements
-- HTML widget limitations
-- Video codec support by model
-- H.265 support by model
-- Large file playback limits
-- SD card storage behaviour
-- Screenshot availability
-- Power/control path options
-- ZIP extraction feasibility
-- Local package mounting
-- Sync accuracy
-- Offline package behaviour
-- Firmware update impact
-- CMS-player-specific runtime differences
+- `docs/api/overview.md` — command surface
+- `docs/guides/black-gap-playback.md` — BrightSign transition behaviour
+- `docs/guides/widget-zip-packages.md` — widget zip handling
+- `docs/guides/assets-and-atomic-activation.md` — media cache / publish flow
+- BrightSign player `README.md` — build, SD layout, HDMI troubleshooting
 
 ## Goal
 
-The goal is for TomorrowOS to support BrightSign OS in a way that is practical, honest and useful for real signage deployments.
-
-BrightSign should be treated as a first-class platform, but support must be proven by player model, firmware and runtime.
-
-One API.
-
-Honest capability mapping.
-
-Safe fallback behaviour.
+Document BrightSign as it behaves in real deployments: what TomorrowOS supports now, which commands work, and which Series 3 limits (**firmware 9.1.140+ for video**, **no 4K H.264 hardware**) must be handled before go-live.

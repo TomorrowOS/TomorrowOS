@@ -1,56 +1,76 @@
 # Certification Testing
 
-TomorrowOS should not mark a feature as supported unless it has been tested, evidenced or clearly documented.
+TomorrowOS should not mark a feature as supported unless it has been tested on a real device.
 
-Certification testing is how TomorrowOS proves that a feature works on a specific operating system, device model, firmware version and runtime.
+Certification testing is how TomorrowOS proves that a feature works on a specific operating system, device model, firmware version and player runtime.
+
+This page describes **how to certify against the shipped TomorrowOS surface today**: the CMS SDK, WebSocket device commands, and the Tizen / BrightSign players.
 
 ## Purpose
 
 The purpose of certification testing is to make TomorrowOS capability claims trustworthy.
 
-Digital signage operating systems vary heavily across:
+Digital signage platforms vary heavily across:
 
 - Operating system
 - Device model
-- Firmware version
-- Browser engine
-- Media engine
-- Runtime
-- App permissions
-- Native API access
-- Storage behaviour
-- Network conditions
-- Whether a bridge or agent is available
+- Firmware / OS version
+- Media engine (AVPlay, `roVideoPlayer`, etc.)
+- Player package version
+- Network and storage conditions
 
-A feature should not be marked as `supported` just because it works somewhere.
+A feature should not be marked as supported just because it works somewhere.
 
-It should be tested and documented.
+It should be tested and documented for the exact model + firmware.
 
 ## Core principle
 
-The core principle is:
-
 > No evidence, no supported claim.
 
-If a feature has not been tested, it should be marked as:
+If a feature has not been tested, treat it as unknown.
 
-```txt
-unknown
-```
+If it only works in some conditions, document it as partial, model-dependent or firmware-dependent.
 
-If it only works in some conditions, it should be marked as:
+## Current platforms
 
-```txt
-partial
-model-dependent
-firmware-dependent
-requires-bridge
-unsafe
+| Platform | Certification status today |
+| --- | --- |
+| Samsung Tizen | Certify on **Tizen 6.5+** |
+| BrightSign | Certify on **Series 3/4/5/6** |
+| LG webOS | Coming soon |
+| Android | Coming soon |
+
+See:
+
+- `docs/os/tizen.md`
+- `docs/os/brightsign.md`
+
+## Commands to certify
+
+Certify the **shipped device command surface**, not aspirational nested APIs.
+
+| Command | What to prove |
+| --- | --- |
+| `device.info.get` | Model, firmware, identity fields return |
+| `device.info.getCapabilities` | Capability map matches what actually works |
+| `device.content.setPolicy` | Playlist policy applies and plays |
+| `device.content.clear` | Content clears and brand idle returns |
+| `device.power.reboot` | Reboot accepted and player recovers |
+| `device.display.setOnOffTimer` | Timer set/clear works where supported |
+| `device.telemetry.captureScreen` | Screenshot returns usable image data |
+
+CMS helpers that should also be exercised:
+
+```ts
+tos.pairing.verify(code)
+tos.playlists.savePlaylist(...)
+tos.playlists.publishPlaylistsToDevice(deviceId, playlistIds)
+tos.pushLatestPolicyToDevice(deviceId)
+tos.setDeviceOnOffTimer(...)
+tos.clearDeviceOnOffTimer(...)
 ```
 
 ## Certification status
-
-Certification results should use clear status values.
 
 | Status | Meaning |
 | --- | --- |
@@ -59,43 +79,54 @@ Certification results should use clear status values.
 | `partial` | Test passed with limitations |
 | `blocked` | Test could not be completed |
 | `not-applicable` | Test does not apply to this platform |
-| `requires-bridge` | Test requires a bridge, agent or native layer |
-| `unsafe` | Test is possible but not recommended |
+| `firmware-dependent` | Result depends on firmware / OS version |
 | `unknown` | Test has not been run |
 
-## Capability support status
+## Capability reporting
 
-Certification results help determine capability support.
+Players report command support through `device.info.getCapabilities` as:
 
-| Capability status | Meaning |
-| --- | --- |
-| `supported` | Works through the standard TomorrowOS API |
-| `unsupported` | Not available on this OS/device |
-| `partial` | Works, but with known limits |
-| `model-dependent` | Depends on the exact hardware model |
-| `firmware-dependent` | Depends on firmware or OS version |
-| `requires-bridge` | Requires an agent, native bridge or platform-specific layer |
-| `unsafe` | Possible, but not recommended |
-| `unknown` | Not yet tested |
+```json
+{
+  "capabilities": {
+    "device.content.setPolicy": { "supported": true },
+    "device.telemetry.captureScreen": { "supported": true }
+  }
+}
+```
+
+Certification should check both:
+
+1. What `getCapabilities` claims
+2. What actually works on that model / firmware
+
+A command can be advertised as supported and still fail on an old firmware build. Document that as **firmware-dependent**.
+
+## Known hardware / firmware gates
+
+Record these before calling a combination production-safe:
+
+| Platform | Feature | Gate |
+| --- | --- | --- |
+| Samsung Tizen | `device.telemetry.captureScreen` | Firmware **1080+** |
+| BrightSign Series 3 | Video playback | Firmware **9.1.140+** |
+| BrightSign Series 3 | 4K H.264 video | **Hardware limit** — use 1080p even after firmware upgrade |
 
 ## Certification record
 
 Each certification record should include:
 
-- Operating system
+- Operating system (`tizen` / `brightsign`)
 - Device manufacturer
 - Device model
-- Firmware version
-- OS version
-- Runtime type
-- Browser engine or WebView version, where relevant
-- TomorrowOS version
-- Connector or bridge used
+- Firmware / OS version
+- TomorrowOS player version
+- CMS / SDK version
+- CMS URL used for pairing
 - Test date
 - Tester
-- Test result
+- Result summary
 - Known limitations
-- Fallback behaviour
 - Evidence or notes
 
 Example:
@@ -105,552 +136,251 @@ Example:
   "os": "tizen",
   "manufacturer": "Samsung",
   "model": "QM43C",
-  "firmware": "Tizen 7.0",
-  "runtime": "browser",
-  "tomorrowosVersion": "0.1.0",
-  "connector": "tizen-web",
-  "testedAt": "2026-01-01T10:00:00.000Z",
+  "firmware": "1080",
+  "playerVersion": "1.0.0",
+  "sdkVersion": "0.9.51",
+  "testedAt": "2026-07-28T10:00:00.000Z",
   "testedBy": "example-tester",
   "result": "partial",
-  "passed": 42,
-  "failed": 6,
-  "blocked": 2,
-  "notes": "Video playback passed for tested H.264 profile. H.265 requires further model-specific testing."
+  "passed": 18,
+  "failed": 1,
+  "blocked": 0,
+  "notes": "Screenshot passed on firmware 1080. Older firmware on the same model failed captureScreen."
 }
 ```
 
 ## Minimum certification areas
 
-Every supported OS, model and firmware combination should be tested across the following areas.
+Every supported OS, model and firmware combination should be tested across these areas.
 
 | Area | Purpose |
 | --- | --- |
-| Device | Confirm device identity and environment |
-| Runtime | Confirm browser, WebView, app or bridge behaviour |
-| Image playback | Confirm supported image formats |
-| Video playback | Confirm supported video formats and codecs |
+| Setup | Install player, set CMS URL / orientation, pair |
+| Device | Confirm identity and capabilities |
+| Image playback | Confirm images play from policy |
+| Video playback | Confirm codecs / resolutions for that panel |
 | Transitions | Confirm black-gap-safe switching |
-| Widgets | Confirm HTML/widget runtime behaviour |
-| Packages | Confirm ZIP/package validation and rollback |
-| Assets | Confirm download, checksum, cache and activation |
-| Display control | Confirm screen/device control where supported |
-| Network | Confirm online, offline and reconnect behaviour |
-| Sync | Confirm multi-screen and video wall timing |
-| Telemetry | Confirm heartbeat, logs, errors and screenshots |
-| Proof | Confirm proof-of-play and proof-of-display events |
-| Security | Confirm safe command and package boundaries |
+| Widgets | Confirm `.zip` / `.wgt` playlist items |
+| Assets / offline | Confirm download, cache and offline replay |
+| Display control | Confirm reboot and on/off timer where supported |
+| Telemetry | Confirm screenshot where supported |
+| Recovery | Confirm reconnect, reboot resume, clear → brand idle |
+
+Areas that are **not** shipped public APIs yet (do not block V1 certification on them):
+
+- Multi-screen video wall sync API
+- Dedicated proof-of-play / proof-of-display API
+- Separate `packages.validate` / install / rollback API
+- Nested `tomorrow.capabilities.check(...)` client API
+
+## Setup tests
+
+Minimum tests:
+
+- Player installs / boots on the target device
+- Orientation can be set
+- CMS URL can be set
+- `localhost` / `127.0.0.1` is rejected or fails as expected for on-device players
+- LAN IP or hosted CMS URL connects successfully
+- Pairing code appears
+- `tos.pairing.verify(code)` brings the device online
+
+Tizen notes:
+
+- Orientation intro + on-device CMS setup screen
+- Supported baseline: **Tizen 6.5+**
+
+BrightSign notes:
+
+- Configure `config.js` `cmsEndpoint` + `orientation`
+- Hosted CMS BrightSign zip usually auto-fills CMS URL
+- Never use `localhost` in `cmsEndpoint`; use LAN IP for local testing
 
 ## Device tests
 
-Device tests should confirm that TomorrowOS can identify the environment.
-
 Minimum tests:
 
-- Read manufacturer
-- Read model
-- Read OS
-- Read OS version
-- Read firmware version
-- Read runtime type
-- Read orientation
-- Read resolution
-- Read storage availability
-- Read network state
-
-Capability examples:
-
-```txt
-device.info
-device.model
-device.firmware
-device.os_version
-device.orientation
-device.resolution
-device.storage
-network.status
-```
-
-## Runtime tests
-
-Runtime tests should confirm the app environment.
-
-Minimum tests:
-
-- JavaScript support
-- CSS support
-- HTML5 video support
-- Canvas support
-- WebSocket support
-- Fetch/XHR support
-- Local storage support
-- Runtime memory behaviour
-- Runtime crash handling
-- Bridge availability, if relevant
-
-Capability examples:
-
-```txt
-runtime.javascript
-runtime.css
-runtime.html5_video
-runtime.canvas
-runtime.websocket
-runtime.fetch
-runtime.local_storage
-runtime.memory_limit
-runtime.bridge
-```
+- `device.info.get` returns model
+- `device.info.get` returns firmware
+- `device.info.getCapabilities` returns the expected command map
+- Capability claims match later command results
 
 ## Image playback tests
 
-Minimum tests:
+Publish a policy playlist and confirm:
 
 - JPG playback
 - PNG playback
-- Transparent PNG playback
-- WebP playback, where relevant
-- SVG playback, where relevant
 - Large image playback
-- Unsupported image fallback
-- Image scaling
-- Image rotation
-- Image-to-image transition
-
-Capability examples:
-
-```txt
-playback.image.jpg
-playback.image.png
-playback.image.webp
-playback.image.svg
-playback.image.transparency
-playback.image.large_file
-playback.image.scaling
-transition.image_to_image
-```
+- Image scaling / letterboxing acceptable for the panel
+- Image → image transition without black gap
 
 ## Video playback tests
 
-Minimum tests:
+Publish a policy playlist and confirm:
 
-- MP4 playback
-- H.264 playback
-- H.265 playback, where relevant
-- WebM playback, where relevant
-- Unsupported codec fallback
-- High-resolution video playback
-- High-bitrate video playback
-- Muted autoplay
+- MP4 / H.264 playback
+- 1080p H.264 playback
+- 4K H.264 playback where the panel claims to support it
 - Looping
 - First-frame readiness
-- Video-to-video transition
-- Video-to-image transition
-- Image-to-video transition
+- Image → video
+- Video → image
+- Video → video
 
-Capability examples:
+Platform-specific gates:
 
-```txt
-playback.video.mp4
-playback.video.h264
-playback.video.h265
-playback.video.webm
-playback.video.first_frame
-playback.video.looping
-playback.video.hardware_decode
-transition.image_to_video
-transition.video_to_image
-transition.video_to_video
-```
+- **BrightSign Series 3:** require firmware **9.1.140+** for video playback; treat **4K H.264** as a **hardware limit** and certify with **1080p H.264**
+- Prefer documenting exact resolution, codec profile and bitrate used in the test
 
 ## Black-gap transition tests
 
-Black-gap tests should confirm that current content stays visible until the next content is ready.
+Confirm current content stays visible until the next item is ready.
 
 Minimum tests:
 
-- Image to image
-- Image to video
-- Video to image
-- Video to video
-- Image to widget
-- Widget to image
-- Video to widget
-- Widget to video
-- Playlist to playlist
-- Zone to zone
-- Failed video fallback
-- Failed widget fallback
-- First-frame timeout fallback
-- Last known good recovery
+- Image → image
+- Image → video
+- Video → image
+- Video → video
+- Single-image loop
+- Single-video loop
+- Multi-item playlist wrap
 
-Capability examples:
-
-```txt
-transition.image_to_image
-transition.image_to_video
-transition.video_to_image
-transition.video_to_video
-transition.image_to_widget
-transition.widget_to_image
-transition.black_frame_safe
-playback.restore_last_known_good
-```
+See `docs/guides/black-gap-playback.md` for the shipped Tizen / BrightSign behaviour.
 
 ## Widget tests
 
-Minimum tests:
-
-- Simple widget load
-- Widget with local assets
-- Widget with external network call
-- Widget offline behaviour
-- Missing entrypoint
-- JavaScript runtime error
-- Widget timeout
-- Widget fallback
-- Widget memory pressure
-- Widget-to-media transition
-
-Capability examples:
-
-```txt
-playback.widget
-playback.widget.entrypoint
-playback.widget.local_assets
-playback.widget.external_network
-playback.widget.timeout
-playback.widget.runtime_errors
-playback.widget.fallback
-```
-
-## Package tests
+Widgets are playlist items, not a separate package API.
 
 Minimum tests:
 
-- Valid ZIP package
-- Invalid ZIP package
-- Missing manifest
-- Invalid manifest JSON
-- Missing entrypoint
-- Missing fallback
-- Unsafe path traversal attempt
-- Unsupported file type
-- Oversized package
-- Package staging
-- Package activation
-- Package rollback
-- Package removal
+- `.zip` / `.wgt` package item with default `index.html`
+- Package item with custom `entryFile`
+- Hosted HTML widget (`type: "widget"`)
+- Cache reuse after reboot for same `url` + `version`
+- Missing entry file fails safely to brand idle
+- Widget → media and media → widget handoff
 
-Capability examples:
+See `docs/guides/widget-zip-packages.md`.
 
-```txt
-package.zip
-package.manifest
-package.safe_extraction
-package.entrypoint
-package.rollback
-package.remove
-security.package_validation
-```
-
-## Asset tests
+## Asset / offline tests
 
 Minimum tests:
 
-- Successful image download
-- Successful video download
-- Failed download
-- Interrupted download
-- Partial download rejection
-- Checksum success
-- Checksum failure
-- Unsupported file type
-- Storage full handling
-- Asset expiry
-- Cache cleanup
-- Offline cached playback
-- Atomic playlist activation
-- Activation failure rollback
-- Last known good recovery
-- Missing fallback handling
-
-Capability examples:
-
-```txt
-asset.download
-asset.checksum
-asset.stage
-asset.atomic_activation
-asset.cleanup
-asset.expiry
-asset.storage.available
-asset.storage.pressure
-asset.partial_download_detection
-network.offline_cache
-```
+- Successful image download into local cache
+- Successful video download into local cache
+- Offline replay of already-cached media
+- Publish blocked or fails clearly when assets are unreachable from the CMS side
+- `device.content.clear` returns to brand idle
+- Reconnect after network loss still accepts a later `setPolicy`
 
 ## Display control tests
 
-Display control tests should only run where the feature is available and safe.
-
 Minimum tests where supported:
 
-- Power on
-- Power off
-- Reboot
-- Restart app
-- Brightness control
-- Volume control
-- Mute
-- Orientation
-- Resolution
-- Panel status
-- Temperature, where available
-- Usage hours, where available
+- `device.power.reboot`
+- Resume after reboot
+- `device.display.setOnOffTimer` set
+- `device.display.setOnOffTimer` clear (`onOffTimer: null`)
 
-Capability examples:
+If on/off timer capability is `supported: false`, mark the test `not-applicable`.
 
-```txt
-display.power
-display.reboot
-display.restart_app
-display.brightness
-display.volume
-display.mute
-display.orientation
-display.panel_status
-display.temperature
-display.usage_hours
-```
-
-Important:
-
-If display control requires a bridge, native app, device owner mode, serial control or OEM API, mark it clearly.
-
-## Network tests
-
-Minimum tests:
-
-- Online status
-- Offline status
-- IP address
-- DNS test
-- URL reachability
-- Captive portal handling, where possible
-- Reconnect detection
-- Offline cached playback
-- Retry after reconnect
-- Network failure telemetry
-
-Capability examples:
-
-```txt
-network.status
-network.ip_address
-network.dns_test
-network.url_test
-network.captive_portal
-network.reconnect
-network.offline_cache
-```
-
-## Sync tests
-
-Sync tests should be run on real multi-device or multi-screen environments where possible.
-
-Minimum tests:
-
-- Two-screen sync
-- Multi-screen sync
-- Join sync group
-- Leave sync group
-- Master/follower mode
-- Start at timestamp
-- Drift measurement
-- Drift correction
-- Network jitter handling
-- One device drop-off
-- Device rejoin
-- Video wall panel mapping
-- Bezel compensation, where relevant
-
-Capability examples:
-
-```txt
-sync.group
-sync.master
-sync.follower
-sync.start_at
-sync.drift
-sync.drift_correction
-sync.wall
-sync.panel_mapping
-sync.bezel_compensation
-```
+Do not certify brightness / volume / arbitrary power APIs that are not part of the shipped command surface.
 
 ## Telemetry tests
 
 Minimum tests:
 
-- Heartbeat
-- Current content report
-- Current playlist report
-- App version report
-- Runtime version report
-- Online/offline report
-- Playback error report
-- Package error report
-- Asset error report
-- Storage pressure report
-- Memory pressure report
-- Screenshot, where supported
-- Log export, where supported
+- Device appears online after pair
+- Heartbeat / online state remains healthy during playback
+- `device.telemetry.captureScreen` where supported
 
-Capability examples:
+Tizen screenshot gate:
 
-```txt
-telemetry.heartbeat
-telemetry.current_content
-telemetry.current_playlist
-telemetry.app_version
-telemetry.runtime_version
-telemetry.playback_errors
-telemetry.package_errors
-telemetry.asset_errors
-telemetry.storage_pressure
-telemetry.memory_pressure
-telemetry.screenshot
-telemetry.logs
-```
+- Require firmware **1080+** before marking screenshot as production-supported
 
-## Proof tests
-
-Proof tests should separate proof-of-play from proof-of-display.
+## Recovery tests
 
 Minimum tests:
 
-- Proof-of-play event
-- Proof-of-display event, where possible
-- Screenshot proof, where supported
-- Failed playback proof
-- Fallback proof
-- Playlist proof
-- Zone proof
-- Duration proof
-- Audit export
+- Reboot while playing → resumes acceptably
+- Orientation change / reload path (Tizen Red A) does not permanently brick playback
+- Re-pair / reconnect pushes or restores policy as expected
+- Failed playlist item falls back to brand idle instead of hanging on black
 
-Capability examples:
-
-```txt
-proof.play
-proof.display
-proof.screenshot
-proof.failure
-proof.audit_export
-```
-
-Proof-of-play means the player attempted to play content.
-
-Proof-of-display means there is evidence the content actually appeared on screen.
-
-## Security tests
-
-Minimum tests:
-
-- No unauthenticated destructive local commands
-- No unsafe package extraction
-- Path traversal rejected
-- Secrets not logged
-- Access tokens not logged
-- Customer data not included in public logs
-- Screenshot permissions reviewed
-- Remote commands validated
-- Unsupported commands fail safely
-- Unknown capability does not execute as supported
-
-Capability examples:
-
-```txt
-security.local_api_auth
-security.command_validation
-security.package_validation
-security.secret_redaction
-security.safe_defaults
-```
-
-## Certification report format
-
-A certification report should be exportable and easy to review.
-
-Example:
+## Example certification report
 
 ```json
 {
-  "certificationId": "cert_001",
+  "certificationId": "cert_bs_series3_video",
   "os": "brightsign",
   "manufacturer": "BrightSign",
-  "model": "HD226",
-  "firmware": "example-firmware",
-  "runtime": "html-widget",
-  "tomorrowosVersion": "0.1.0",
-  "testedAt": "2026-01-01T10:00:00.000Z",
+  "model": "Series 3 example",
+  "firmware": "9.1.140",
+  "runtime": "html-widget + roVideoPlayer",
+  "sdkVersion": "0.9.51",
+  "testedAt": "2026-07-28T10:00:00.000Z",
   "summary": {
-    "passed": 52,
-    "failed": 4,
-    "partial": 6,
-    "blocked": 2
+    "passed": 16,
+    "failed": 0,
+    "partial": 1,
+    "blocked": 0
   },
-  "capabilities": [
+  "commands": [
     {
-      "feature": "playback.video.h264",
+      "feature": "device.content.setPolicy",
       "status": "supported",
       "result": "passed"
     },
     {
-      "feature": "telemetry.screenshot",
-      "status": "requires-bridge",
-      "result": "blocked"
+      "feature": "playback.video.h264.1080p",
+      "status": "firmware-dependent",
+      "result": "passed",
+      "notes": "Series 3 requires firmware 9.1.140+ for reliable video playback."
+    },
+    {
+      "feature": "playback.video.h264.4k",
+      "status": "unsupported",
+      "result": "failed",
+      "notes": "Series 3 hardware limit. Use 1080p H.264 for this model line."
+    },
+    {
+      "feature": "device.telemetry.captureScreen",
+      "status": "supported",
+      "result": "passed"
     }
-  ],
-  "notes": "Screenshot support requires further bridge testing."
+  ]
 }
 ```
 
 ## Passing criteria
 
-A feature may be considered for `supported` status when:
+A feature may be considered production-supported for a combination when:
 
-- It passes the required tests
-- It works through the documented API path
-- It has been tested on the stated OS, model and firmware
-- Known limitations are documented
-- Fallback behaviour is documented
-- Security risks are reviewed
+- It passes the required tests on that OS + model + firmware
+- It works through the documented command / CMS path
+- Known limitations are written down
+- Failure behaviour is acceptable (usually brand idle, not black hang)
 - The result can be reproduced
 
-## When to avoid supported status
+## When to avoid a supported claim
 
-Do not mark a feature as `supported` if:
+Do not mark a feature as supported if:
 
 - It only worked once
-- The test environment is unclear
-- The device model is unknown
-- The firmware version is unknown
-- The feature requires a bridge but the bridge is not documented
-- The feature works but is unsafe
-- The feature works only through a private workaround
-- The feature fails under common deployment conditions
-- The feature has no fallback path
-- The result cannot be reproduced
+- Model or firmware was not recorded
+- It depends on a private workaround
+- It fails under common deployment conditions
+- Capability says supported but real hardware fails
+- Screenshot / 4K / timer was not re-checked after a firmware note
 
-Use a more accurate status instead:
+Use a more accurate label instead:
 
 ```txt
 partial
 model-dependent
 firmware-dependent
-requires-bridge
-unsafe
 unknown
 ```
 
@@ -658,37 +388,31 @@ unknown
 
 Recommended workflow:
 
-1. Select OS
+1. Select OS (`tizen` or `brightsign`)
 2. Select device model
-3. Record firmware version
-4. Record runtime
-5. Run device tests
-6. Run playback tests
-7. Run package tests
-8. Run asset tests
-9. Run transition tests
-10. Run telemetry tests
-11. Run proof tests
-12. Run security tests
-13. Export certification report
-14. Update capability matrix
-15. Document known limitations
+3. Record firmware / OS version
+4. Record player + SDK versions
+5. Complete setup + pairing
+6. Run `device.info.get` + `device.info.getCapabilities`
+7. Run image / video / transition tests
+8. Run widget tests
+9. Run offline / recovery tests
+10. Run reboot + on/off timer tests
+11. Run screenshot tests (respect firmware gates)
+12. Export certification notes
+13. Update OS docs / capability matrix with limitations
 
 ## Production readiness
 
-Certification improves confidence, but it does not guarantee production suitability.
+Certification improves confidence, but it does not guarantee every customer deployment.
 
 Production use still requires:
 
-- Customer-specific testing
+- Customer-specific content testing
 - Network testing
-- Content testing
 - Security review
-- Rollback planning
-- Monitoring
-- Support planning
-- Compliance review
-- Acceptance testing
+- Rollback / support planning
+- Monitoring after go-live
 
 See:
 
@@ -700,8 +424,6 @@ SECURITY.md
 
 ## Goal
 
-The goal of TomorrowOS certification is to make support claims trustworthy.
+Make TomorrowOS support claims honest.
 
-The project should not pretend every operating system, device or firmware version supports every feature.
-
-The goal is to give developers one API, while making the real-world support status clear, tested and honest.
+One API surface across platforms is the goal. Certification exists to document what that API actually does on each real OS, model and firmware combination.

@@ -1,545 +1,436 @@
 # TomorrowOS Developer Guide
 
-TomorrowOS is an open source unified API layer for digital signage operating systems.
+This guide is for developers building a CMS, integrating TomorrowOS into an existing app, or extending the Control Panel on top of `@tomorrowos/sdk`.
 
-This guide is for developers building signage apps, CMS players, widgets, connectors, device integrations or tools on top of TomorrowOS.
+It describes **what exists today**: the Node CMS SDK, the WebSocket / HTTP wire protocol, and the Tizen / BrightSign players — not a future client runtime API.
+
+For product-level context, see `docs/guides/beginners-guide.md`. For the full command list, see `docs/api/overview.md`.
 
 ## Developer mindset
 
-TomorrowOS should be built around one simple rule:
-
 > Check capability first. Execute safely second. Report clearly third.
 
-Digital signage operating systems do not behave the same way.
+Screens differ by OS, model, firmware, media engine and permissions. Do not assume reboot, screenshot or on/off timer works until `device.info.getCapabilities` says so.
 
-A feature may work on one device but fail on another because of:
+Do not invent helpers like `tomorrow.playback.play()` or `tomorrow.display.power("off")`. Use the SDK instance and dotted wire methods such as `device.content.setPolicy`.
 
-- Operating system
-- Device model
-- Firmware version
-- Browser engine
-- Media engine
-- Native API access
-- App permissions
-- Storage limits
-- Network conditions
-- Runtime environment
-- Whether a bridge or agent is available
+## Architecture
 
-Do not assume a feature is available.
-
-Always check capabilities first.
-
-## Basic flow
-
-A typical TomorrowOS app should follow this flow:
-
-1. Wait for TomorrowOS runtime
-2. Read device information
-3. Check required capabilities
-4. Validate assets or packages
-5. Stage content
-6. Activate content safely
-7. Monitor playback
-8. Report telemetry
-9. Record proof events
-10. Fall back when something fails
-
-Example:
-
-```ts
-import { tomorrow } from "@tomorrowos/sdk"
-
-await tomorrow.ready()
-
-const device = await tomorrow.device.info()
-
-const support = await tomorrow.capabilities.checkMany([
-  "playback.image.jpg",
-  "playback.video.h264",
-  "transition.video_to_image",
-  "asset.atomic_activation",
-  "proof.play"
-])
-
-if (support["playback.video.h264"].status === "supported") {
-  await tomorrow.playback.play({
-    type: "video",
-    src: "/assets/promo.mp4",
-    fallback: "/assets/fallback.jpg",
-    transition: "black-frame-safe"
-  })
-} else {
-  await tomorrow.playback.play({
-    type: "image",
-    src: "/assets/fallback.jpg"
-  })
-}
+```txt
+Your CMS (@tomorrowos/sdk)
+  HTTP: pairing, playlists, media, Control Panel
+  WebSocket: device.* commands + uplink (ping, logs, hello)
+        ↕
+TomorrowOS player (Tizen / BrightSign)
+  caches media, plays policy, reports capabilities
 ```
 
-## Installation
+| Piece | Role |
+| --- | --- |
+| `TomorrowOS` class | CMS server: listen, store, pairing, playlists, device commands |
+| Control Panel | UI over HTTP helpers (`/pairing/verify`, `/playlists`, …) |
+| Player app | Runs on the panel; applies `device.content.setPolicy` |
+| Store | SQLite (dev), Postgres / Supabase / Neon (production) |
+| Media | Cloudinary, Vercel Blob, Replit Object Storage, or local uploads |
 
-The intended developer flow is:
+There is no required TomorrowOS cloud. Screens talk to **your** server.
+
+## Scaffold and run
 
 ```bash
-npx @tomorrowos/sdk init my-signage-app
-cd my-signage-app
+npx @tomorrowos/sdk@latest init my-cms
+cd my-cms
 npm install
+```
+
+Configure `.env` (and the same secrets on your host):
+
+```bash
+# Database (example: Supabase)
+TOMORROWOS_STORE=supabase
+SUPABASE_URL=postgresql://...@....supabase.co:5432/postgres
+DATABASE_SSL=true
+
+# Media (example: Cloudinary)
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+# optional: CLOUDINARY_FOLDER=tomorrowos
+```
+
+```bash
 npm run dev
 ```
 
-This project is still in early development, so package names, install commands and SDK behaviour may change before v1.0.
+Deploy to a host with a **persistent Node.js runtime** and long-lived WebSockets (Railway, Render, Fly.io, a VPS, etc.). Avoid classic short-lived serverless without WebSocket support.
 
-## Runtime readiness
+You get:
 
-A TomorrowOS app should wait for the runtime before calling APIs.
+- Pairing HTTP (`POST /pairing/verify`, `POST /pairing/unpair`)
+- `GET /brand.json`
+- WebSocket device channel
+- Media upload helpers
+- `GET /players/brightsign.zip` (CMS URL baked into `config.js`)
+- Starter Control Panel under `staticRoot`
 
-```ts
-await tomorrow.ready()
-```
-
-This ensures the runtime, connector, bridge or browser environment has had a chance to initialise.
-
-## Device API
-
-Use the Device API to understand the current device and runtime.
+### Add to an existing app
 
 ```ts
-const device = await tomorrow.device.info()
+import { createTomorrowOSStore, TomorrowOS } from "@tomorrowos/sdk"
+
+const store = createTomorrowOSStore({
+  databaseUrl: process.env.SUPABASE_URL || process.env.DATABASE_URL
+})
+
+const tos = new TomorrowOS({ brand, store })
+
+tos.listen({
+  port: Number(process.env.PORT) || 3000,
+  host: "0.0.0.0",
+  staticRoot: "./public" // optional
+})
 ```
 
-Example response:
+Keep your auth, tenancy and UI. The SDK adds device sessions, pairing, playlist/policy delivery and optional static helpers.
 
-```json
-{
-  "id": "device_123",
-  "os": "tizen",
-  "osVersion": "7.0",
-  "model": "QM43C",
-  "firmware": "T-KTM2ELAKUC",
-  "manufacturer": "Samsung",
-  "orientation": "landscape",
-  "runtime": "browser"
+## Install a player and pair
+
+1. Deploy a public **HTTPS** CMS URL (or a tunnel while developing).
+2. Control Panel → **Download Players** → Tizen or BrightSign.
+3. Install on the device (see `PLAYER_INSTALL.md` in `@tomorrowos/sdk`). BrightSign zip from **your** CMS embeds `cmsEndpoint`.
+4. Player shows a **6-character pairing code**.
+5. Control Panel → Pair → submit the code (`POST /pairing/verify` or `tos.pairing.verify(code)`).
+6. Device appears online. Upload media, save a playlist, **Publish**.
+
+## Basic flow (shipped)
+
+```ts
+import { TomorrowOS } from "@tomorrowos/sdk"
+
+const tos = new TomorrowOS({ /* store, brand, ... */ })
+await tos.listen({ port: 8787 })
+
+const { deviceId } = await tos.pairing.verify("A4F2K1")
+
+const info = await tos.device(deviceId).sendCommand("device.info.get", {})
+const capsResult = await tos.device(deviceId).sendCommand(
+  "device.info.getCapabilities",
+  {}
+)
+const caps = capsResult.data.capabilities
+
+const playlist = await tos.playlists.savePlaylist({
+  name: "Lobby",
+  items: [
+    { type: "image", url: "https://cdn.example.com/promo.jpg", duration: 8000 },
+    { type: "video", url: "https://cdn.example.com/loop.mp4" }
+  ]
+})
+
+if (caps["device.content.setPolicy"]?.supported) {
+  // Publish verifies asset reachability, then pushes setPolicy
+  await tos.playlists.publishPlaylistsToDevice(deviceId, [playlist.id])
+}
+
+if (caps["device.display.setOnOffTimer"]?.supported) {
+  await tos.setDeviceOnOffTimer(deviceId, {
+    turnOnAt: "08:00",
+    turnOffAt: "22:00"
+  })
+}
+
+if (caps["device.telemetry.captureScreen"]?.supported) {
+  await tos.device(deviceId).sendCommand("device.telemetry.captureScreen", {})
 }
 ```
 
-Potential methods:
+Typical sequence:
+
+1. Listen / deploy CMS  
+2. Pair device  
+3. Read `device.info.get` + `device.info.getCapabilities`  
+4. Upload / register media  
+5. Save playlist  
+6. Publish → CMS verify URLs → `device.content.setPolicy`  
+7. Player caches and plays (black-gap-safe handoffs inside the player)  
+8. Optional: screenshot, reboot, on/off timer  
+9. On failure / empty policy: brand idle fallback  
+
+## How `tos` is created
 
 ```ts
-tomorrow.device.info()
-tomorrow.device.identify()
-tomorrow.device.getModel()
-tomorrow.device.getFirmware()
-tomorrow.device.getRuntime()
-tomorrow.device.restartApp()
-tomorrow.device.reboot()
+import { TomorrowOS } from "@tomorrowos/sdk"
+
+const tos = new TomorrowOS({
+  // store, brand, and other CMS options
+})
+
+await tos.listen({ port: 8787 })
 ```
 
-## Capability API
+After that:
 
-The Capability API is the most important TomorrowOS API.
+- `tos.device(deviceId).sendCommand(method, params)` — device wire commands  
+- `tos.pairing.*` — pairing  
+- `tos.playlists.*` — playlists and policy publish  
+- `tos.listDevices()` — roster + online state  
 
-Use it before calling any feature that may not be supported everywhere.
+Name the variable anything; docs use `tos` as a short alias.
+
+## Capability checks
+
+Always check before hardware-facing calls:
 
 ```ts
-const support = await tomorrow.capabilities.check("display.power")
-```
+const result = await tos.device(deviceId).sendCommand(
+  "device.info.getCapabilities",
+  {}
+)
+const caps = result.data.capabilities
 
-Example response:
-
-```json
-{
-  "feature": "display.power",
-  "status": "model-dependent",
-  "source": "tested",
-  "notes": "Supported on tested commercial display models only."
+if (caps["device.power.reboot"]?.supported) {
+  await tos.device(deviceId).sendCommand("device.power.reboot", {})
 }
 ```
-
-Support statuses:
 
 | Status | Meaning |
 | --- | --- |
-| `supported` | Works through the standard TomorrowOS API |
-| `unsupported` | Not available on this OS/device |
-| `partial` | Works, but with known limits |
-| `model-dependent` | Depends on the exact hardware model |
-| `firmware-dependent` | Depends on firmware or OS version |
-| `requires-bridge` | Requires an agent, native bridge or platform-specific layer |
-| `unsafe` | Possible, but not recommended |
-| `unknown` | Not yet tested |
+| `supported: true` | Works through the standard command |
+| `supported: false` | Not available on this runtime / device |
+| Command failure | Listed as supported, but the call failed at runtime |
 
-Example:
+Do not treat untested model/firmware as production-safe. Use certification evidence before claiming support.
+
+## Information API
 
 ```ts
-const support = await tomorrow.capabilities.checkMany([
-  "playback.video.h264",
-  "package.zip",
-  "display.power",
-  "telemetry.screenshot"
-])
-
-for (const [feature, result] of Object.entries(support)) {
-  console.log(feature, result.status)
-}
+device.info.get
+device.info.getCapabilities
 ```
 
-## Playback API
+`device.info.get` returns identity / hardware fields (model, firmware, serial, online, …). Use it in the CMS device detail view and for support tickets.
 
-The Playback API should handle images, videos, HTML, widgets and playlists.
+## Playback (content policy)
 
-Example image playback:
+There is **no** low-level `play()` RPC per media item.
+
+Playback is driven by **content policy**:
 
 ```ts
-await tomorrow.playback.play({
-  type: "image",
-  src: "/assets/menu.jpg",
-  durationMs: 10000,
-  transition: "fade"
+await tos.device(deviceId).sendCommand("device.content.setPolicy", {
+  policy: {
+    playlists: [
+      {
+        id: "lobby",
+        name: "Lobby",
+        items: [
+          { type: "image", url: "https://cdn.example.com/promo.jpg", duration: 8000 },
+          { type: "video", url: "https://cdn.example.com/loop.mp4" }
+        ]
+      }
+    ]
+  }
 })
 ```
 
-Example video playback:
+Clear and return to brand idle:
 
 ```ts
-await tomorrow.playback.play({
-  type: "video",
-  src: "/assets/promo.mp4",
-  fallback: "/assets/fallback.jpg",
-  transition: "black-frame-safe"
-})
+await tos.device(deviceId).sendCommand("device.content.clear", {})
 ```
 
-Potential methods:
+Prefer CMS helpers that verify and build policy:
 
 ```ts
-tomorrow.playback.play(content)
-tomorrow.playback.stop()
-tomorrow.playback.pause()
-tomorrow.playback.resume()
-tomorrow.playback.getState()
-tomorrow.playback.setPlaylist(playlist)
-tomorrow.playback.restoreLastKnownGood()
+tos.playlists.savePlaylist({ name, items, schedule })
+tos.playlists.publishPlaylistsToDevice(deviceId, playlistIds)
+tos.playlists.buildPolicyForDevice(deviceId)
+tos.pushLatestPolicyToDevice(deviceId)
+tos.playlists.removePlaylistFromDevice(deviceId, playlistId)
+tos.playlists.clearAllAssignmentsFromDevice(deviceId)
 ```
 
-## Transition API
+Or Control Panel: `POST /device/{deviceId}/assignments`.
 
-Transitions should be designed to prevent black gaps.
-
-A black-gap-safe transition should not remove current content until the next content is ready.
-
-Example:
-
-```ts
-await tomorrow.transitions.execute({
-  from: "current",
-  to: "next",
-  mode: "black-frame-safe",
-  preload: true,
-  requireFirstFrame: true,
-  fallback: "/assets/fallback.jpg",
-  timeoutMs: 3000
-})
-```
-
-Transition types to test:
+Wire methods:
 
 ```txt
-transition.image_to_image
-transition.image_to_video
-transition.video_to_image
-transition.video_to_video
-transition.image_to_widget
-transition.widget_to_image
-transition.video_to_widget
-transition.widget_to_video
-transition.playlist_to_playlist
-transition.zone_to_zone
+device.content.setPolicy
+device.content.clear
 ```
 
-## Asset API
+## Assets and atomic activation
 
-Use the Asset API to download, verify, stage and activate files safely.
+There is **no** separate `tomorrow.assets.*` command surface.
 
-Example:
+Flow today:
 
-```ts
-await tomorrow.assets.download({
-  id: "promo_video_001",
-  src: "https://example.com/assets/promo.mp4",
-  checksum: "sha256-example",
-  sizeBytes: 24500000
-})
-
-await tomorrow.assets.verify("promo_video_001")
-await tomorrow.assets.stage("promo_video_001")
+```txt
+CMS upload / register
+  → playlist items (absolute URLs + optional contentHash)
+    → publish gate (CMS verifies URLs reachable)
+      → device.content.setPolicy
+        → player download / cache / play
 ```
 
-Important behaviours:
+See `docs/guides/assets-and-atomic-activation.md`.
 
-- Download retry
-- Checksum validation
-- Partial download detection
-- Storage pressure checks
-- Local caching
-- Expiry
-- Cleanup
-- Atomic activation
-- Last known good recovery
+## Transitions and black gaps
 
-## Package API
+After `setPolicy`, the **player** owns image/video handoffs (dual layers, dual AVPlay / dual `roVideoPlayer`, prefetch, still-mode, etc.).
 
-Use the Package API for ZIP files, widgets and packaged signage apps.
+See `docs/guides/black-gap-playback.md` for image → image, image → video, video → image, video → video, and loop behaviour on Tizen and BrightSign.
 
-Example:
+## Pairing, sync and reconnect
 
 ```ts
-const validation = await tomorrow.packages.validate("/packages/weather-widget.zip")
+const { deviceId } = await tos.pairing.verify("A4F2K1")
+await tos.pairing.unpair(deviceId)
 
-if (validation.ok) {
-  const installed = await tomorrow.packages.install("/packages/weather-widget.zip")
-
-  await tomorrow.packages.activate(installed.packageId, {
-    mode: "atomic",
-    fallback: "/assets/fallback.jpg"
-  })
-}
-```
-
-Package flow:
-
-1. Validate file type
-2. Validate package size
-3. Extract safely
-4. Check for unsafe paths
-5. Validate manifest
-6. Confirm entrypoint
-7. Confirm required assets
-8. Check permissions
-9. Stage package
-10. Activate package
-11. Roll back on failure
-
-## Sync API
-
-Use the Sync API for multi-screen and video wall behaviour.
-
-Example:
-
-```ts
-await tomorrow.sync.joinGroup("wall_01")
-
-await tomorrow.sync.startAt({
-  contentId: "hero_video",
-  timestamp: "2026-01-01T10:00:00.000Z"
+tos.on("device.online", async ({ deviceId }) => {
+  await tos.pushLatestPolicyToDevice(deviceId)
 })
 ```
 
-Sync should account for:
+Wire / events you will see:
 
-- Time source
-- NTP availability
-- Master/follower mode
-- Drift measurement
-- Drift correction
-- Video wall mapping
-- Bezel compensation
-- Network jitter
-- Screen drop-off recovery
-
-## Display API
-
-Display controls should always be capability-checked first.
-
-Example:
-
-```ts
-const powerSupport = await tomorrow.capabilities.check("display.power")
-
-if (powerSupport.status === "supported") {
-  await tomorrow.display.power("off")
-}
+```txt
+device.hello
+device.resume
+device.ping / device.pong
+device.online / device.offline / device.heartbeat
 ```
 
-Potential methods:
+This sync layer is about **connection continuity** (reconnect, reboot resume, re-pair, latest policy push) — not frame-accurate video walls.
+
+`device.ping` / `device.pong` are uplink heartbeats, not an HTTP ping API you call from the Control Panel.
+
+## Display and power
 
 ```ts
-tomorrow.display.power("on")
-tomorrow.display.power("off")
-tomorrow.display.setBrightness(80)
-tomorrow.display.getBrightness()
-tomorrow.display.setOrientation("portrait")
-tomorrow.display.getOrientation()
-tomorrow.display.setVolume(20)
-tomorrow.display.mute()
-tomorrow.display.getPanelStatus()
-```
-
-## Telemetry API
-
-Telemetry should help developers and operators understand what is happening.
-
-Example:
-
-```ts
-await tomorrow.telemetry.heartbeat()
-
-await tomorrow.telemetry.log({
-  type: "playback.started",
-  contentId: "promo_video_001"
+await tos.device(deviceId).sendCommand("device.display.setOnOffTimer", {
+  onOffTimer: { turnOnAt: "08:00", turnOffAt: "22:00" }
 })
+
+await tos.setDeviceOnOffTimer(deviceId, {
+  turnOnAt: "08:00",
+  turnOffAt: "22:00"
+})
+await tos.clearDeviceOnOffTimer(deviceId)
+
+await tos.device(deviceId).sendCommand("device.power.reboot", {})
 ```
 
-Telemetry should cover:
+Wire methods:
 
-- Heartbeat
-- Online/offline state
-- Current content
-- Current playlist
-- App version
-- Runtime version
-- Playback errors
-- Package errors
-- Asset errors
-- Storage pressure
-- Memory pressure
-- Screenshots where supported
-- Last successful proof-of-play
+```txt
+device.display.setOnOffTimer
+device.power.reboot
+```
 
-## Proof API
+Notes:
 
-Proof-of-play and proof-of-display should be separate.
+- Timer uses daily `HH:mm`; `turnOnAt` / `turnOffAt` must differ  
+- Often model / firmware dependent — check capabilities first  
+- There is no shipped `device.display.power("off")` brightness/volume API today  
 
-Example proof-of-play:
+## Telemetry
+
+Screenshot:
 
 ```ts
-await tomorrow.proof.recordPlay({
-  contentId: "promo_video_001",
-  playlistId: "lunch_menu",
-  startedAt: new Date().toISOString(),
-  durationMs: 15000
-})
+const result = await tos.device(deviceId).sendCommand(
+  "device.telemetry.captureScreen",
+  {}
+)
+// result.data.screenshot: { mimeType, dataBase64, capturedAt, width, height }
 ```
 
-Example proof-of-failure:
+Also available via `POST /device/{id}/screenshot`.
+
+Wire method:
+
+```txt
+device.telemetry.captureScreen
+```
+
+Player logs uplink as `device.log`; read them with `GET /device/{id}/logs`.
+
+## Network / presence
+
+No separate `device.network.*` command set.
+
+Use:
 
 ```ts
-await tomorrow.proof.recordFailure({
-  contentId: "promo_video_001",
-  reason: "first_frame_timeout",
-  fallbackUsed: true,
-  timestamp: new Date().toISOString()
-})
+tos.listDevices() // online / offline
+// plus device.ping / pong and online / offline events
 ```
 
-Proof types:
+## Shipped device command surface
 
-| Type | Meaning |
+| Command | Role |
 | --- | --- |
-| Proof-of-play | The player attempted to play content |
-| Proof-of-display | Evidence the content appeared on screen |
-| Proof-of-failure | The content failed and fallback was used |
-| Screenshot proof | Visual evidence where supported |
-| Audit proof | Exportable event record |
+| `device.info.get` | Identity / hardware info |
+| `device.info.getCapabilities` | Capability discovery |
+| `device.content.setPolicy` | Publish playlists / start playback |
+| `device.content.clear` | Clear content / brand idle |
+| `device.power.reboot` | Reboot |
+| `device.display.setOnOffTimer` | Daily on/off (mute) schedule |
+| `device.telemetry.captureScreen` | Screenshot |
+
+Uplink-only (player → CMS): `device.ping`, `device.log`, `device.hello`, `device.resume`, …
 
 ## Error handling
 
-Errors should be structured, searchable and useful.
+Prefer structured results from `sendCommand` (ok / error / unsupported) and CMS publish verification failures before policy push.
 
-Example:
-
-```json
-{
-  "type": "playback.failure",
-  "feature": "playback.video.h264",
-  "reason": "unsupported_codec",
-  "contentId": "promo_video_001",
-  "os": "tizen",
-  "model": "QM43C",
-  "firmware": "7.0",
-  "fallbackUsed": true,
-  "timestamp": "2026-01-01T10:00:00.000Z"
-}
-```
-
-Common failure reasons:
+Common field / support issues:
 
 ```txt
-asset_missing
-asset_download_failed
-asset_partial_download
-asset_checksum_failed
-unsupported_codec
-unsupported_file_type
-first_frame_timeout
-widget_entrypoint_missing
-widget_timeout
-widget_runtime_error
-package_manifest_invalid
-storage_full
-memory_pressure
-network_unavailable
-transition_timeout
-sync_failed
-unsupported_feature
-requires_bridge
-unknown_runtime_error
+asset URL not reachable (publish gate)
+unsupported command on this runtime
+first-frame / decode failure (player falls back or keeps last good)
+storage / download failure on device
+device offline (command cannot be delivered)
 ```
+
+When something fails after a successful publish, players keep last known good media when possible, or show brand idle from `GET /brand.json`.
 
 ## Security expectations
 
-Developers should avoid unsafe device control.
+- Do not expose unauthenticated admin routes  
+- Do not log secrets or credentials  
+- Keep pairing behind your Control Panel auth  
+- Treat unknown capability as unsupported until tested  
+- Be careful storing / transmitting screenshots  
 
-Do not:
-
-- Expose unauthenticated local APIs
-- Log secrets or credentials
-- Accept unsafe ZIP paths
-- Activate unvalidated packages
-- Run destructive commands silently
-- Treat unknown capability as supported
-- Collect customer data unnecessarily
-- Assume screenshots are safe to store or transmit
-
-Follow `SECURITY.md` for security reporting and project expectations.
+Follow project `SECURITY.md` where applicable.
 
 ## Production checklist
 
-Before production use, test:
+- Exact device model + firmware tested  
+- Public HTTPS CMS reachable from the screen network  
+- Durable database + media storage (not ephemeral local disk)  
+- Publish verification passes for every playlist asset  
+- Offline / reboot resume  
+- Black-gap transitions for your real media mix (see black-gap guide)  
+- Capabilities verified per fleet type  
+- Pairing, publish, screenshot, reboot paths exercised end-to-end  
 
-- Exact device model
-- Exact firmware version
-- Runtime/browser engine
-- Required capabilities
-- Image playback
-- Video playback
-- Widget playback
-- ZIP package validation
-- Asset download
-- Checksum failure
-- Atomic activation
-- Black-gap transitions
-- Offline behaviour
-- Last known good recovery
-- Telemetry events
-- Proof events
-- Security boundaries
+## Related docs
 
-## Contributing as a developer
-
-Before opening a pull request:
-
-- Keep changes focused
-- Update documentation
-- Include tests where possible
-- Include device, OS and firmware evidence for capability claims
-- Do not include secrets, customer data or private SDK material
-- Mark uncertain capability claims as `unknown`, `partial`, `model-dependent`, `firmware-dependent` or `requires-bridge`
-
-See `CONTRIBUTING.md` for the full contribution guide.
+| Doc | Use when |
+| --- | --- |
+| `docs/api/overview.md` | Full API reference |
+| `docs/guides/beginners-guide.md` | Product / setup overview |
+| `docs/guides/assets-and-atomic-activation.md` | Publish gate + player cache |
+| `docs/guides/black-gap-playback.md` | Image/video handoffs on Tizen & BrightSign |
+| `@tomorrowos/sdk` README | Scaffold, hosts, architecture |
+| `PLAYER_INSTALL.md` | Tizen / BrightSign install |
 
 ## Goal
 
-TomorrowOS should make signage development simpler without pretending signage operating systems are all the same.
+One CMS ↔ player contract, honest capabilities, safe publish and player-owned transitions — without pretending every signage OS is the same.
 
-The goal is one clean API with honest capability mapping, safe playback handling, strong fallback behaviour and clear reporting.
+Write against the **shipped** wire methods. Keep platform details inside the player. Document what you actually certified on real hardware.

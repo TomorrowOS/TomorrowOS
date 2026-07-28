@@ -1,417 +1,363 @@
 # TomorrowOS Beginners Guide
 
-TomorrowOS is an open source unified API layer for digital signage operating systems.
+TomorrowOS helps you build and run digital signage across different screen platforms without rewriting everything for each OS.
 
-This guide is for people who want to understand TomorrowOS without needing to be a developer first.
+This guide is for founders, product teams, integrators, support, sales, CMS vendors, hardware partners, and anyone who wants the big picture first — without needing to read the source code.
 
-It is written for founders, product teams, integrators, support teams, sales teams, CMS vendors, hardware partners and anyone trying to understand what TomorrowOS does and why it matters.
+It describes **what exists today** in `@tomorrowos/sdk` and the TomorrowOS players (Samsung Tizen and BrightSign), not a future wishlist.
 
 ## The simple idea
 
-Digital signage screens and media players do not all work the same way.
+Digital signage screens do not all work the same way.
 
-A screen in a restaurant, retail store, airport, shopping centre, office, university or government building may run on different hardware and different operating systems.
+A restaurant menu board, retail display, airport screen or office lobby may run on different hardware and different operating systems. Those systems differ for:
 
-Those systems can behave differently when it comes to:
-
-- Playing images
-- Playing videos
-- Running widgets
-- Loading ZIP packages
-- Controlling screen power
+- Playing images and videos
+- Running HTML widgets / ZIP packages
+- Controlling power or on/off timers
 - Taking screenshots
-- Reporting proof-of-play
-- Staying online
-- Recovering from failure
-- Syncing across multiple screens
+- Staying online and recovering after reboot
 - Handling firmware differences
 
-TomorrowOS exists to make those differences easier to understand, test and manage.
+TomorrowOS gives you:
+
+1. **A CMS server SDK** (`@tomorrowos/sdk`) — you own the CMS; the SDK handles pairing, device sessions, playlists, media helpers and the wire protocol
+2. **Player apps** — run on the screen (Tizen, BrightSign today) and speak that protocol
+3. **A shared command language** — dotted methods such as `device.content.setPolicy` and `device.info.getCapabilities`
+
+You build or brand the Control Panel. Screens talk to **your** server. There is no required TomorrowOS cloud.
 
 ## What problem does TomorrowOS solve?
 
-Digital signage development is fragmented.
+Without a shared layer, each CMS tends to invent its own pairing, publish and device-control path per platform.
 
-A CMS, app, widget or integration may work perfectly on one screen but fail on another.
+That leads to:
 
-For example:
+- A video that plays on one device but not another
+- A widget that works in one runtime and blacks out on another
+- Power or screenshot features that exist only on some models
+- Publish flows that push playlists before media is reachable
+- Hard-to-debug “it worked in the lab” failures in the field
 
-- A video may play on one device but not another
-- A widget may load on one OS but show a black screen on another
-- A ZIP package may work in one player but fail in another runtime
-- A screen may support power control, but only on some models
-- A screenshot may be possible on one platform but impossible on another
-- Proof-of-play may say content played, even if the screen was actually black
-- A firmware update may change behaviour unexpectedly
-
-TomorrowOS helps by creating one shared way to check what is supported before a feature is used.
+TomorrowOS standardises the **CMS ↔ player contract** and keeps platform details inside the player.
 
 ## What is TomorrowOS?
 
-TomorrowOS is not a full digital signage CMS.
+### What it is
 
-It is a layer that helps software talk to different signage operating systems in a more consistent way.
+- An **open-source SDK** for building your own digital signage CMS (`@tomorrowos/sdk`, Apache 2.0)
+- A **player runtime** for commercial screens (Tizen and BrightSign players today)
+- A **WebSocket + HTTP** protocol so the CMS can pair devices, publish playlists, reboot, capture screenshots, and more
+- Starter Control Panel templates and setup guides for **Replit** and **Vercel / v0**
+- Documentation for capabilities, black-gap playback, assets and certification
 
-Think of it like a common language for signage software.
+### What it is not
 
-Instead of a developer needing to write separate logic for every platform, TomorrowOS aims to provide one cleaner API for common signage needs.
+- Not a hosted TomorrowOS SaaS you must subscribe to
+- Not a finished turnkey CMS product by itself (you customise the UI and business logic)
+- Not a promise that every screen supports every feature
+- Not a replacement for testing the exact model and firmware you ship
+- Not a production SLA, hardware warranty or support contract
 
-Those needs include:
+## The pieces (mental model)
 
-- Playback
-- Content validation
-- Device capability checks
-- ZIP and widget package handling
-- Asset download and caching
-- Fallback content
-- Device control
-- Telemetry
-- Proof-of-play
-- Proof-of-display
-- Synchronisation
-- Testing and certification
+```txt
+┌─────────────────────────┐         WebSocket + HTTPS        ┌─────────────────────────┐
+│  Your CMS               │  ←────────────────────────────→  │  TomorrowOS player      │
+│  (@tomorrowos/sdk)      │                                  │  (Tizen / BrightSign)   │
+│  Control Panel + store  │                                  │  plays media locally    │
+└─────────────────────────┘                                  └─────────────────────────┘
+```
+
+| Piece | Role |
+| --- | --- |
+| `@tomorrowos/sdk` | Node server: pairing, devices, playlists, media upload helpers, `/status`, WebSocket |
+| Control Panel | Web UI (starter included) for pairing codes, playlists, publish, screenshots |
+| Player app | Runs on the screen; caches media; plays policy; reports capabilities |
+| Database | Supabase / Neon / Replit Postgres / SQLite (dev) — pairing and playlist data |
+| Media storage | Cloudinary, Vercel Blob, Replit Object Storage, or local uploads |
+
+## How a screen gets content (current flow)
+
+1. Deploy your CMS to a public HTTPS URL (or a tunnel while developing).
+2. Install the TomorrowOS player on the screen and point it at that CMS URL.
+3. The player shows a **pairing code**.
+4. In the Control Panel, enter the code (`POST /pairing/verify`).
+5. Upload media and build playlists.
+6. On **Publish**, the panel **verifies** that each asset URL is reachable.
+7. If verification passes, the CMS sends `device.content.setPolicy` to the player.
+8. The player downloads / caches media and plays the active playlist.
+9. If something fails later, the player keeps good content on screen when possible, or shows **brand idle** fallback.
+
+That publish + policy path is how “atomic activation” works today — not a separate `assets.activate` API.
 
 ## What is a unified API?
 
-An API is a way for software to communicate with other software or hardware.
+Here “unified API” means:
 
-A unified API means developers can use one consistent set of commands instead of writing different code for every operating system.
+- **HTTP** routes for the Control Panel and tools (`/pairing/verify`, `/devices`, `/playlists`, `/media/upload`, …)
+- **WebSocket methods** for the player (`device.content.setPolicy`, `device.info.getCapabilities`, `device.telemetry.captureScreen`, …)
 
-For example, a developer may want to turn a display off.
+Developers do **not** call fictional helpers like `tomorrow.display.power("off")`.
 
-Instead of writing totally different commands for every platform, they could use a TomorrowOS-style command like:
-
-```ts
-await tomorrow.display.power("off")
-```
-
-But before doing that, TomorrowOS should first check whether the device actually supports that feature:
+They use the SDK instance and/or HTTP, for example:
 
 ```ts
-const support = await tomorrow.capabilities.check("display.power")
+import { TomorrowOS } from "@tomorrowos/sdk"
+
+const tos = new TomorrowOS({ brand, store })
+await tos.listen({ port: 8787 })
+
+// Capability check (wire method)
+await tos.device(deviceId).sendCommand("device.info.getCapabilities", {})
+
+// Publish content (builds policy and pushes setPolicy)
+await tos.playlists.publishPlaylistsToDevice(deviceId, [playlistId])
 ```
 
-If the feature is supported, the command can run.
-
-If it is not supported, TomorrowOS can report that clearly instead of failing silently.
+Or from the Control Panel: `POST /device/{deviceId}/assignments`.
 
 ## What is a capability?
 
-A capability is something a screen, media player or operating system can do.
+A capability is something this **player + device** can do.
 
-Examples of capabilities include:
+Examples:
 
-- Play a JPG image
-- Play an MP4 video
-- Support H.264 video
-- Run a widget
-- Install a ZIP package
-- Control brightness
-- Turn the screen on or off
-- Take a screenshot
-- Report proof-of-play
-- Run offline
-- Join a sync group
-- Support video wall playback
+- Play JPG / MP4
+- Run a widget ZIP
+- Reboot
+- Set an on/off timer
+- Capture a screenshot
 
-TomorrowOS tracks these capabilities so developers know what is safe to use.
+The live check is:
 
-## Why capability mapping matters
+```txt
+device.info.getCapabilities
+```
 
-Not every screen supports every feature.
+The response lists which `device.*` commands are supported on that runtime. Always check before relying on hardware-facing features.
 
-Even two screens from the same brand may behave differently if they are different models or firmware versions.
+## Black gaps, atomic activation, and fallback
 
-TomorrowOS should avoid pretending everything works everywhere.
+### Black gap
 
-Instead, it should clearly mark support as:
+A black gap is when the screen goes black or broken during a content change.
 
-| Status | Meaning |
+TomorrowOS players aim for:
+
+> Do not remove good content from the screen until the next item is ready.
+
+See `docs/guides/black-gap-playback.md`.
+
+### Atomic activation (today)
+
+Two layers:
+
+1. **CMS publish gate** — do not push a policy if playlist media URLs fail verification
+2. **Player handoff** — after `device.content.setPolicy`, cache media and switch playlists/items without wiping the screen early
+
+See `docs/guides/assets-and-atomic-activation.md`.
+
+### Fallback / last known good
+
+| Layer | What happens |
 | --- | --- |
-| `supported` | The feature works through the standard TomorrowOS API |
-| `unsupported` | The feature is not available on this OS or device |
-| `partial` | The feature works, but with limits |
-| `model-dependent` | The feature depends on the exact hardware model |
-| `firmware-dependent` | The feature depends on firmware or OS version |
-| `requires-bridge` | The feature needs an agent, native bridge or extra platform-specific layer |
-| `unsafe` | The feature may be possible, but is not recommended |
-| `unknown` | The feature has not been tested yet |
+| Policy cache | Last policy snapshot kept on the player for offline / reboot resume |
+| Media cache | Local copies of videos / images / widgets when download succeeds |
+| Brand idle | If nothing playable remains, show branding from `GET /brand.json` |
 
-This makes TomorrowOS more honest and more useful in real deployments.
+`device.content.clear` stops playback and returns to brand idle.
 
-## What is a black gap?
+## Pairing, ping, and logs (plain language)
 
-A black gap is when a screen goes black, blank, frozen or broken during playback or content changeover.
-
-This can happen when:
-
-- A video is not ready
-- A widget takes too long to load
-- A file is missing
-- A codec is unsupported
-- A playlist changes too early
-- A package fails
-- A screen loses network
-- A device runs out of memory
-- A transition is triggered before the next item is ready
-
-TomorrowOS treats black gaps as a serious playback issue.
-
-The goal is simple:
-
-> Do not remove good content from the screen until the next content is ready.
-
-## What is atomic activation?
-
-Atomic activation means new content should only go live when everything needed is ready.
-
-For example, a new playlist should not activate if:
-
-- Some files are missing
-- A video failed to download
-- A checksum failed
-- A widget package is broken
-- A fallback image is missing
-- The screen does not support the required feature
-- Storage is too low
-
-Instead, TomorrowOS should keep playing the last known good content.
-
-This helps avoid black screens and failed updates.
-
-## What is last known good content?
-
-Last known good content is the safe content a screen can return to if something fails.
-
-This could be:
-
-- A fallback image
-- A previous playlist
-- A previous widget package
-- Emergency content
-- Offline content
-
-If a new update fails, the screen should not break.
-
-It should return to something safe.
-
-## What is proof-of-play?
-
-Proof-of-play means the system recorded that content was played.
-
-But there is an important difference:
-
-| Type | Meaning |
+| Concept | What it means |
 | --- | --- |
-| Proof-of-play | The player attempted to play the content |
-| Proof-of-display | There is evidence the content actually appeared on the screen |
+| Pairing code | Short code on screen; CMS verifies it and links the device |
+| `device.ping` / `device.pong` | Heartbeat so the CMS knows the screen is online (not an HTTP “ping API” you call) |
+| `device.log` | Player sends log lines to the CMS (read via `GET /device/{id}/logs`) |
+| Screenshot | CMS calls `POST /device/{id}/screenshot` → wire method `device.telemetry.captureScreen` |
 
-This matters because a system might say content played, but the physical screen could have been black, frozen or disconnected.
+## Platforms today
 
-TomorrowOS should help separate these events clearly.
-
-## What is a bridge?
-
-Some operating systems do not expose every device feature directly to a normal web app.
-
-A bridge is an extra layer that allows TomorrowOS to access deeper device features where supported.
-
-A bridge may be needed for:
-
-- Power control
-- Screenshots
-- Firmware information
-- Storage access
-- Native logs
-- Device reboot
-- Advanced telemetry
-- Package handling
-- Sync control
-
-If something requires a bridge, TomorrowOS should say that clearly.
-
-## What TomorrowOS is
-
-TomorrowOS is:
-
-- An open source unified API layer
-- A capability mapping system
-- A developer-friendly signage abstraction layer
-- A way to understand OS and device differences
-- A foundation for signage apps, CMS players and widgets
-- A testing and certification model for signage features
-- A safer way to handle playback, packages, assets and device control
-
-## What TomorrowOS is not
-
-TomorrowOS is not:
-
-- A full digital signage CMS
-- A finished commercial platform by default
-- A guarantee that every screen supports every feature
-- A replacement for proper device testing
-- A production SLA
-- A hardware warranty
-- A support contract
-- A guarantee of uptime
-- A guarantee that forks or third-party products will work safely
+| Platform | Status |
+| --- | --- |
+| Samsung Tizen (6.5+) | Player app supported (app version **1.0.0**) |
+| BrightSign (Series 3+) | Player app supported (app version **1.0.0**) |
+| LG webOS / Android / Windows | Documented as targets / certification goals; use capability honesty — do not claim full support until tested |
 
 ## Who is TomorrowOS for?
 
-TomorrowOS can help different groups.
-
 ### Developers
 
-Developers can use TomorrowOS to build signage apps, CMS players, widgets and device integrations without rewriting core logic for every platform.
+Build a CMS with `@tomorrowos/sdk`, customise the Control Panel, deploy to Replit, Vercel, Railway, Fly, or your own Node host.
 
 ### Integrators
 
-Integrators can use TomorrowOS to understand what a device or OS can actually support before deploying into a customer environment.
+Pair real screens, publish playlists, and confirm capabilities on the exact model/firmware before go-live.
 
 ### CMS vendors
 
-CMS vendors can use TomorrowOS as a reference for cross-platform playback, package handling, capability checks and device integration.
+Use the SDK as the device session and protocol layer under your own product UI and billing.
 
 ### Hardware partners
 
-Hardware partners can use TomorrowOS to document and test what their devices support.
+Document and certify which `device.*` methods your stack supports.
 
-### End customers
+### Product, sales and support
 
-End customers can benefit from more reliable signage networks, clearer support claims and better testing before deployment.
-
-### Product, sales and support teams
-
-Non-technical teams can use TomorrowOS documentation to understand what is possible, what is risky and what needs testing before making promises to customers.
+Use this guide to explain what is shipped, what needs testing, and what not to promise.
 
 ## Example real-world scenario
 
-A restaurant brand wants to run digital menu boards across hundreds of stores.
+A restaurant brand runs menu boards on Samsung Tizen panels and BrightSign players.
 
-Some stores use Samsung displays.
+1. They deploy one CMS built on `@tomorrowos/sdk`.
+2. Each screen installs the matching TomorrowOS player and pairs with a code.
+3. Before relying on screenshots or on/off timers, the CMS checks `device.info.getCapabilities`.
+4. Staff upload menu videos to Cloudinary or Blob, build playlists, and publish.
+5. Publish verification blocks broken media URLs.
+6. Players cache files and keep previous content on screen until the new item is ready.
 
-Some use LG displays.
+One CMS protocol; platform differences stay in the player.
 
-Some use BrightSign players.
+## How to get started
 
-Some screens support certain video formats.
+### Non-developers — build and publish on Replit or Vercel
 
-Some do not.
+You do not need to write code. Use the AI agent on **Replit** (recommended) or **Vercel / v0**, answer a few setup questions, publish the CMS, then install and pair a player.
 
-Some support remote power control.
+#### Option A — Replit (recommended)
 
-Some do not.
+1. Create a new Repl (Node.js).
+2. Open the agent in **Power** mode.
+3. Paste this prompt:
 
-Some can take screenshots.
-
-Some cannot.
-
-Without TomorrowOS, a developer may need to write different logic for every platform.
-
-With TomorrowOS, the app can first ask:
-
-```ts
-const support = await tomorrow.capabilities.checkMany([
-  "playback.video.h264",
-  "display.power",
-  "telemetry.screenshot",
-  "proof.play"
-])
+```text
+Follow NPM package @tomorrowos/sdk REPLIT_SETUP.md and set up my TomorrowOS CMS.
 ```
 
-Then the app can make safer decisions based on what the screen actually supports.
+4. Answer the agent’s questions (database, media storage, branding). Prefer **Supabase** for the database and **Cloudinary** (or Replit Object Storage) for media when asked.
+5. When setup finishes, **Publish / Deploy** the Repl so you get a public HTTPS URL.
+6. Open that URL in a browser — you should see the TomorrowOS Control Panel.
+7. Install a player and pair (see **Install a player and pair** below).
 
-## Why this matters for reliability
+To upgrade an existing Replit CMS later:
 
-Digital signage is often public-facing.
+```text
+Follow NPM package @tomorrowos/sdk REPLIT_UPGRADE.md to upgrade my CMS with the latest SDK.
+```
 
-When it fails, people notice.
+#### Option B — Vercel / v0
 
-A failed screen can mean:
+1. Open **v0** (use **v0 Max**) or Vercel Agent with Max capability.
+2. Paste this prompt:
 
-- Lost advertising value
-- Poor customer experience
-- Staff confusion
-- Menu pricing issues
-- Brand damage
-- Support tickets
-- Technician callouts
-- Operational disruption
+```text
+Follow NPM package @tomorrowos/sdk VERCEL_SETUP.md and set up my TomorrowOS CMS.
+```
 
-TomorrowOS is designed around the real-world reliability problems that happen in signage networks.
+3. Answer Q1–Q3 (database, media, branding). Prefer **Supabase** or **Neon** for the database and **Cloudinary** (or Vercel Blob) for media when asked.
+4. Let the agent configure Environment Variables and **Publish** (Production). Confirm the live URL loads the Control Panel (not a blank Next-only page).
+5. Install a player and pair (see **Install a player and pair** below).
 
-## How to use this repository as a beginner
+To upgrade an existing Vercel / v0 CMS later:
 
-Start with these files:
+```text
+Follow NPM package @tomorrowos/sdk VERCEL_UPGRADE.md to upgrade my CMS with the latest SDK.
+```
 
-1. `README.md`
-2. `docs/README.md`
-3. `docs/guides/beginners-guide.md`
-4. `docs/capabilities/capability-matrix.md`
-5. `docs/guides/black-gap-playback.md`
-6. `docs/guides/assets-and-atomic-activation.md`
-7. `docs/guides/widget-zip-packages.md`
+#### Install a player and pair (after the CMS is live)
 
-You do not need to understand every line of code.
+You need a **public HTTPS CMS URL** that the screen can reach.
 
-The main things to understand are:
+1. In the Control Panel, open **Download Players**.
+2. Choose your platform:
+   - **Samsung Tizen** — download / install the Tizen player package (`.wgt` / URL Launcher flow; see `PLAYER_INSTALL.md` in `@tomorrowos/sdk`).
+   - **BrightSign** — download the zip from **this** CMS (it embeds your CMS URL). Copy it to a microSD card and boot the player.
+3. On the screen, open the TomorrowOS player and enter the **CMS URL** if the install path asks for it (BrightSign zip from your CMS usually already has it).
+4. The player shows a **6-character pairing code**.
+5. In the Control Panel, open pairing and enter that code.
+6. The device should appear in your device list as online. Upload media, build a playlist, and **Publish** to the screen.
 
-- What TomorrowOS is trying to solve
-- What features need to be mapped
-- Which OS platforms are being considered
-- What risks exist in playback and device control
-- What needs testing before production
-- What is safe, unsafe or unknown
-- What developers should build toward
+---
 
-## How to use TomorrowOS if you are a developer
+### Developers — scaffold locally, then deploy a persistent Node host
 
-If you are a developer, focus on:
+1. Scaffold and install:
 
-- The API overview
-- Capability checks
-- Playback examples
-- Package handling
-- Asset staging
-- Black-gap prevention
-- Telemetry events
-- Proof events
-- Certification tests
-- OS connector documentation
+```bash
+npx @tomorrowos/sdk@latest init my-cms
+cd my-cms
+npm install
+```
 
-Start with:
+2. Configure environment in a `.env` file (and in your host’s secret store when you deploy). Typical production setup:
 
-1. `docs/api/overview.md`
-2. `docs/capabilities/capability-matrix.md`
-3. `docs/guides/developer-guide.md`
-4. `docs/testing/certification.md`
-5. `examples/`
+```bash
+# Database (example: Supabase connection string)
+TOMORROWOS_STORE=supabase
+SUPABASE_URL=postgresql://...@....supabase.co:5432/postgres
+DATABASE_SSL=true
+
+# Media (example: Cloudinary)
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+# optional: CLOUDINARY_FOLDER=tomorrowos
+```
+
+Use a durable Postgres store for production pairings/playlists. Use Cloudinary (or another durable media backend the SDK supports) so uploads survive restarts.
+
+3. Run locally to verify:
+
+```bash
+npm run dev
+```
+
+4. Deploy to a host that supports a **persistent Node.js runtime** and long-lived WebSockets, for example:
+
+| Host | Notes |
+| --- | --- |
+| **Railway** | Simple Node deploy; good default |
+| **Render** | Web Service with a persistent process |
+| **Fly.io** | Global VMs; holds WebSockets cleanly |
+| Other | Any VPS / container host that keeps Node running (not short-lived serverless without WebSocket support) |
+
+Set the same database and media env vars on the host. Deploy so you get a public **HTTPS** CMS URL.
+
+5. Install a player and pair:
+
+- Control Panel → **Download Players** → Tizen or BrightSign  
+- Install on the device  
+- Enter CMS URL if required  
+- Enter the on-screen pairing code in the Control Panel  
+- Publish a playlist to confirm end-to-end  
+
+6. Read `docs/api/overview.md` and `docs/guides/developer-guide.md` for the wire protocol and CMS APIs. Use certification docs before marking a capability as `supported` on a given model/firmware.
 
 ## Safe production mindset
 
-Before using TomorrowOS in production, teams should:
+Before production:
 
-- Test the exact device model
-- Test the exact firmware version
-- Test the runtime or browser engine
-- Validate all required capabilities
-- Confirm fallback content exists
-- Test offline behaviour
-- Test failed downloads
-- Test black-gap transitions
-- Test package rollback
-- Test proof-of-play reporting
-- Confirm security controls
-- Confirm support responsibilities
+- Test the **exact** device model and firmware
+- Confirm the CMS URL is public HTTPS and reachable from the screen network
+- Use durable database + media storage (not ephemeral local disk on serverless)
+- Verify publish checks pass for every playlist asset
+- Test offline / reboot resume
+- Test black-gap transitions for your real media mix
+- Confirm which capabilities are supported vs unsupported on each fleet type
+- Decide who owns support when a fork or custom CMS changes behaviour
 
-TomorrowOS can help structure this process, but it does not remove the need for proper testing.
+TomorrowOS structures the contract. It does not remove the need for device testing.
 
 ## The long-term goal
 
-The long-term goal of TomorrowOS is to become a trusted open source layer for the digital signage industry.
+Become a trusted open-source foundation for digital signage:
 
-A layer that makes it easier to build signage software across many operating systems while staying honest about what each platform can actually support.
+- Easier to build a CMS you own
+- Clearer CMS ↔ player protocol
+- Honest capability reporting across operating systems
 
 The goal is not to hide complexity.
 
-The goal is to make complexity easier to manage.
+The goal is to make complexity manageable — and to document what is real today versus what still needs certification.
