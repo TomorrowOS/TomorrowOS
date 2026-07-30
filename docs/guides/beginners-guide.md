@@ -281,8 +281,8 @@ You need a **public HTTPS CMS URL** that the screen can reach.
 
 1. In the Control Panel, open **Download Players**.
 2. Choose your platform:
-   - **Samsung Tizen** — install via Custom App URL or USB; see [Tizen](../os/tizen.md).
-   - **BrightSign** — download the zip from **this** CMS (it embeds your CMS URL), copy to a microSD card, and boot; see [BrightSign](../os/brightsign.md).
+   - **Samsung Tizen** — install via Custom App URL or USB; see [Tizen](../os/tizen).
+   - **BrightSign** — download the zip from **this** CMS (it embeds your CMS URL), copy to a microSD card, and boot; see [BrightSign](../os/brightsign).
 3. On the screen, open the TomorrowOS player and enter the **CMS URL** if the install path asks for it (BrightSign zip from your CMS usually already has it).
 4. The player shows a **6-character pairing code**.
 5. In the Control Panel, open pairing and enter that code.

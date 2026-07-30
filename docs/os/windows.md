@@ -1,3 +1,3 @@
 # Windows
 
-# Coming soon
+Coming soon.

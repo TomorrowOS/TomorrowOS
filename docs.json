@@ -55,7 +55,8 @@
               "docs/os/tizen",
               "docs/os/webos",
               "docs/os/brightsign",
-              "docs/os/android"
+              "docs/os/android",
+              "docs/os/windows"
             ]
           },
           {
@@ -129,6 +130,26 @@
     }
   },
   "redirects": [
+    {
+      "source": "/docs/os/tizen.md",
+      "destination": "/docs/os/tizen"
+    },
+    {
+      "source": "/docs/os/brightsign.md",
+      "destination": "/docs/os/brightsign"
+    },
+    {
+      "source": "/docs/os/webos.md",
+      "destination": "/docs/os/webos"
+    },
+    {
+      "source": "/docs/os/android.md",
+      "destination": "/docs/os/android"
+    },
+    {
+      "source": "/docs/os/windows.md",
+      "destination": "/docs/os/windows"
+    },
     {
       "source": "/docs",
       "destination": "/docs/README"
