@@ -82,19 +82,14 @@ The second phase is about turning the high-level API overview into clear API dom
 
 ### API areas
 
-- Device API
-- Capability API
+- Information API
 - Playback API
 - Transition API
-- Package API
 - Asset API
 - Sync API
 - Display API
 - Network API
 - Telemetry API
-- Proof API
-- Security API
-- Certification API
 
 ### Goals
 
