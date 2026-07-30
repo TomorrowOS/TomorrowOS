@@ -11,13 +11,11 @@ TomorrowOS should never assume that every screen, media player or signage operat
 Digital signage platforms behave differently across:
 
 - Samsung Tizen
-- LG webOS
 - BrightSign OS
+- LG webOS
 - Android
-- ChromeOS
 - Windows
-- Linux
-- Browser-based signage runtimes
+
 
 Even within the same operating system, support can vary by:
 

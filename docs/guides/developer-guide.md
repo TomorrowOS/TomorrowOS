@@ -6,6 +6,15 @@ It describes **what exists today**: the Node CMS SDK, the WebSocket / HTTP wire 
 
 For product-level context, see `docs/guides/beginners-guide.md`. For the full command list, see `docs/api/overview.md`.
 
+## Requirements
+
+| | |
+| --- | --- |
+| Node.js | **20** or newer |
+| npm | 10 or newer (or a compatible client) |
+
+`@tomorrowos/sdk` declares `"engines": { "node": ">=20" }`. The generated starters match that floor.
+
 ## Developer mindset
 
 > Check capability first. Execute safely second. Report clearly third.
@@ -97,7 +106,9 @@ Keep your auth, tenancy and UI. The SDK adds device sessions, pairing, playlist/
 
 1. Deploy a public **HTTPS** CMS URL (or a tunnel while developing).
 2. Control Panel → **Download Players** → Tizen or BrightSign.
-3. Install on the device (see `PLAYER_INSTALL.md` in `@tomorrowos/sdk`). BrightSign zip from **your** CMS embeds `cmsEndpoint`.
+3. Install on the device:
+   - [Samsung Tizen](../os/tizen.md) — Custom App URL, USB sideload, or Device Manager
+   - [BrightSign](../os/brightsign.md) — zip from **your** CMS embeds `cmsEndpoint`; copy to SD card root
 4. Player shows a **6-character pairing code**.
 5. Control Panel → Pair → submit the code (`POST /pairing/verify` or `tos.pairing.verify(code)`).
 6. Device appears online. Upload media, save a playlist, **Publish**.
@@ -427,7 +438,8 @@ Follow project `SECURITY.md` where applicable.
 | `docs/guides/assets-and-atomic-activation.md` | Publish gate + player cache |
 | `docs/guides/black-gap-playback.md` | Image/video handoffs on Tizen & BrightSign |
 | `@tomorrowos/sdk` README | Scaffold, hosts, architecture |
-| `PLAYER_INSTALL.md` | Tizen / BrightSign install |
+| `docs/os/tizen.md` | Samsung Tizen install and platform notes |
+| `docs/os/brightsign.md` | BrightSign install and platform notes |
 
 ## Goal
 

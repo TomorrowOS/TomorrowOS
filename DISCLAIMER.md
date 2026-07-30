@@ -187,6 +187,8 @@ You are responsible for:
 
 Security issues in TomorrowOS should be reported privately using the process in `SECURITY.md`.
 
+Private contact: `security@tomorrowos.org`
+
 ## Not professional advice
 
 TomorrowOS documentation may discuss technical, operational, security, commercial or deployment considerations.

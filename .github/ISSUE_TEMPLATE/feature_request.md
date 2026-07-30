@@ -127,14 +127,10 @@ Related capabilities:
 Which operating systems or runtimes should this feature consider?
 
 - [ ] Samsung Tizen
-- [ ] LG webOS
 - [ ] BrightSign OS
+- [ ] LG webOS
 - [ ] Android
-- [ ] ChromeOS
 - [ ] Windows
-- [ ] Linux
-- [ ] Browser runtime
-- [ ] Other
 
 Details:
 

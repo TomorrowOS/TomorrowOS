@@ -6,6 +6,15 @@ This guide is for founders, product teams, integrators, support, sales, CMS vend
 
 It describes **what exists today** in `@tomorrowos/sdk` and the TomorrowOS players (Samsung Tizen and BrightSign), not a future wishlist.
 
+## Requirements
+
+| | |
+| --- | --- |
+| Node.js | **20** or newer |
+| npm | 10 or newer (or a compatible client) |
+
+Use Node 20+ for local development, Replit, Vercel, and any production host running `@tomorrowos/sdk`.
+
 ## The simple idea
 
 Digital signage screens do not all work the same way.
@@ -181,9 +190,9 @@ See `docs/guides/assets-and-atomic-activation.md`.
 
 | Platform | Status |
 | --- | --- |
-| Samsung Tizen (6.5+) | Player app supported (app version **1.0.0**) |
-| BrightSign (Series 3+) | Player app supported (app version **1.0.0**) |
-| LG webOS / Android / Windows | Documented as targets / certification goals; use capability honesty — do not claim full support until tested |
+| Samsung Tizen (6.5 and 7.0) | Player app supported (app version **1.0.0**) |
+| BrightSign (Series 3-6) | Player app supported (app version **1.0.0**) |
+| LG webOS / Android / Windows | Planned |
 
 ## Who is TomorrowOS for?
 
@@ -272,8 +281,8 @@ You need a **public HTTPS CMS URL** that the screen can reach.
 
 1. In the Control Panel, open **Download Players**.
 2. Choose your platform:
-   - **Samsung Tizen** — download / install the Tizen player package (`.wgt` / URL Launcher flow; see `PLAYER_INSTALL.md` in `@tomorrowos/sdk`).
-   - **BrightSign** — download the zip from **this** CMS (it embeds your CMS URL). Copy it to a microSD card and boot the player.
+   - **Samsung Tizen** — install via Custom App URL or USB; see [Tizen](../os/tizen.md).
+   - **BrightSign** — download the zip from **this** CMS (it embeds your CMS URL), copy to a microSD card, and boot; see [BrightSign](../os/brightsign.md).
 3. On the screen, open the TomorrowOS player and enter the **CMS URL** if the install path asks for it (BrightSign zip from your CMS usually already has it).
 4. The player shows a **6-character pairing code**.
 5. In the Control Panel, open pairing and enter that code.

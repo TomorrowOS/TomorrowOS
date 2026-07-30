@@ -13,13 +13,15 @@ Because TomorrowOS may interact with device APIs, playback surfaces, local netwo
 
 Please do not open a public GitHub issue for security vulnerabilities.
 
-Instead, report security concerns privately to:
+Report security concerns privately using either of these channels:
+
+1. Email:
 
 ```txt
 security@tomorrowos.org
 ```
 
-If this email is not active yet, replace it with the correct maintainer contact before making this repository public.
+2. GitHub private vulnerability reporting for this repository (preferred when available): use **Security → Advisories → Report a vulnerability** on the TomorrowOS GitHub repository.
 
 When reporting a vulnerability, please include as much detail as possible:
 

@@ -40,7 +40,7 @@ First public baseline of the open-source digital signage foundation: a CMS serve
 
 #### Player app (1.0.0)
 
-- Unified player line for **Samsung Tizen 6.5+** and **BrightSign**
+- Unified player line for **Samsung Tizen 6.5 and 7.0** and **BrightSign**
 - On-device pairing code and CMS connection
 - Playlist playback for images, videos, and widget `.zip` / `.wgt` items
 - Local media cache and offline / reboot resume behaviour
@@ -59,10 +59,11 @@ First public baseline of the open-source digital signage foundation: a CMS serve
 
 | Platform | Player | Notes |
 | --- | --- | --- |
-| Samsung Tizen | 1.0.0 | Requires **Tizen 6.5+** |
-| BrightSign | 1.0.0 | Requires **Series 3/4/5/6** |
-| LG webOS | — | Coming soon |
-| Android | — | Coming soon |
+| Samsung Tizen | 1.0.0 | Requires **Tizen 6.5 and 7.0** |
+| BrightSign | 1.0.0 | Requires **Series 3-6** |
+| LG webOS | — | Planned |
+| Android | — | Planned |
+| Windows | — | Planned |
 
 #### Documentation
 

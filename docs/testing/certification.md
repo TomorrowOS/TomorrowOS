@@ -35,8 +35,8 @@ If it only works in some conditions, document it as partial, model-dependent or 
 
 | Platform | Certification status today |
 | --- | --- |
-| Samsung Tizen | Certify on **Tizen 6.5+** |
-| BrightSign | Certify on **Series 3/4/5/6** |
+| Samsung Tizen | Certify on **Tizen 6.5 and 7.0** |
+| BrightSign | Certify on **Series 3-6** |
 | LG webOS | Coming soon |
 | Android | Coming soon |
 
@@ -188,7 +188,7 @@ Minimum tests:
 Tizen notes:
 
 - Orientation intro + on-device CMS setup screen
-- Supported baseline: **Tizen 6.5+**
+- Supported baseline: **Tizen 6.5 and 7.0**
 
 BrightSign notes:
 

@@ -135,6 +135,14 @@ Do not use public GitHub issues for:
 
 Security issues should be reported privately using the process in `SECURITY.md`.
 
+Private contact:
+
+```txt
+security@tomorrowos.org
+```
+
+You may also use GitHub private vulnerability reporting when enabled on the repository.
+
 ## Reporting a bug
 
 When reporting a bug, please include as much detail as possible.

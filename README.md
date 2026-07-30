@@ -40,39 +40,52 @@ You build the product, workflows and customer experience while TomorrowOS provid
 - **Platform-specific runtime behaviour** — the vendor quirks, absorbed
 - **Screen and player integrations** — one API surface across supported hardware
 
+## Requirements
+
+| | |
+| --- | --- |
+| Node.js | **20** or newer |
+| npm | 10 or newer (or a compatible client) |
+
+The CMS SDK and generated starters require Node 20+ (`better-sqlite3`, `@vercel/blob`, and the starter `engines` field).
+
 ## Quickstart
 
-Install the SDK into a new or existing Node project:
+Scaffold a CMS, install dependencies, and start the local server:
 
 ```bash
-npm install @tomorrowos/sdk
+npx @tomorrowos/sdk@latest init my-cms
+cd my-cms
+npm install
+npm run dev
 ```
 
-Pair a device and push a playlist:
+This starts a local TomorrowOS CMS server and Control Panel. To connect a physical screen, deploy the CMS to a reachable HTTPS address, install a supported TomorrowOS player, and pair it using the six-character code shown on screen.
 
-```ts
-import { TomorrowOS } from '@tomorrowos/sdk'
+Everything after that — playlists, policies, scheduling, multi-tenancy — builds on the same foundation: **your CMS server**, **a paired player**, and **content pushed to the device**.
 
-const tos = new TomorrowOS({ apiKey: process.env.TOMORROWOS_KEY })
+## Connect your first screen
 
-// Claim a screen using the pairing code shown on the panel
-const device = await tos.devices.pair({ code: 'A4F2-9K1D' })
+Your CMS must be reachable from the panel (public HTTPS in production, or a LAN IP / tunnel for lab tests — never `localhost` on the screen).
 
-// Give it something to play
-await tos.playlists.assign(device.id, {
-  items: [
-    { type: 'image', url: 'https://cdn.example.com/promo.jpg', duration: 8000 },
-    { type: 'video', url: 'https://cdn.example.com/loop.mp4' },
-  ],
-})
+### Samsung Tizen (6.5 and 7.0)
 
-// Listen for what the screen is actually doing
-tos.events.on('playback.started', (e) => console.log(e.deviceId, e.itemId))
-```
+1. On the display, open **App Management** and install via **Custom App** URL:
 
-This gives you a working digital signage deployment. Everything after this ie. scheduling, policies, multi-tenancy — builds on the same three primitives: **devices, content, events**.
+   ```txt
+   https://tmr.sh/tizen
+   ```
 
-→ [Full quickstart](./docs/guides/beginners-guide.md) · [API reference](./docs/api/overview.md)
+   Or download the player from Control Panel → **Download Players → Samsung** and install via USB.
+2. Choose orientation, then enter your **CMS URL** on the on-device setup screen.
+3. Enter the **six-character** pairing code in the Control Panel → **Pair**.
+
+### BrightSign (Series 3-6)
+
+1. Download the player zip from Control Panel → **Download Players → BrightSign** (CMS URL is filled into `config.js`),  
+   or from `https://tmr.sh/app/brightsign/brightsign_package.zip` and set `cmsEndpoint` yourself.
+2. Unzip and copy the **contents** to the SD card root (`autorun.brs`, `config.js`, and player files).
+3. Confirm `orientation`, insert the card, power-cycle, then pair with the **six-character** code.
 
 ## How it works
 
@@ -108,10 +121,11 @@ Support is version-specific and only listed here once it's confirmed on real har
 
 | Platform | Versions | Status |
 | --- | --- | --- |
-| Samsung Tizen | 6.5 – 7.0 (QMC, QMB, QHC) | ✅ Supported |
-| BrightSign | Series 3, Series 4, Series 5, Series 6 | ✅ Supported |
-| LG webOS | — | 🔜 Planned |
-| Android | — | 🔜 Planned |
+| Samsung Tizen | Tizen 6.5 and 7.0 | Supported |
+| BrightSign | Series 3-6 | Supported |
+| LG webOS | — | Planned |
+| Android | — | Planned |
+| Windows | — | Planned |
 
 ## What you can build
 

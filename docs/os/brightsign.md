@@ -2,12 +2,15 @@
 
 This page documents **how TomorrowOS works on BrightSign today**, including deploy requirements, supported commands, playback behaviour, and known field issues.
 
+**Current support:** TomorrowOS V1 targets BrightSign **Series 3-6**. Always verify on the real model + firmware before claiming production support.
+
 BrightSign is a first-class TomorrowOS player platform alongside Samsung Tizen. Support still depends on **player series**, **BrightSignOS (BOS) firmware**, storage layout and display setup — always verify on the real model before claiming production support.
 
 ## Purpose
 
 This page covers:
 
+- How to install the TomorrowOS BrightSign player on the device
 - How the TomorrowOS BrightSign player boots
 - Device identification and capabilities
 - Content policy / playback behaviour
@@ -25,7 +28,37 @@ A feature may work on one series / BOS version and fail on another. Prefer:
 
 1. Check `device.info.getCapabilities`
 2. Test the real playlist on that model + firmware
-3. Only then mark the combination production-safe
+3. Only then mark the combination production-ready
+
+## Install the player
+
+Supported baseline: BrightSign **Series 3-6** (validate Series 3 firmware — see known issues below).
+
+### Get the package
+
+| Source | What you get |
+| --- | --- |
+| Control Panel → **Download Players → BrightSign** (`GET /players/brightsign.zip`) | Zip with `cmsEndpoint` already set to **this** CMS origin |
+| Distribution zip `https://tmr.sh/app/brightsign/brightsign_package.zip` | Mother package — you must set `cmsEndpoint` in `config.js` yourself |
+
+### Install on the device
+
+1. Unzip the package on a computer.
+2. Confirm `config.js`:
+   - CMS download: `cmsEndpoint` is usually filled — confirm `orientation`
+   - Distribution zip: set `cmsEndpoint` to your CMS origin and set `orientation`
+3. Copy the **contents** of the unzipped folder (not the zip file itself) onto a microSD card or USB stick.
+4. Confirm the **root** of the card contains:
+   - `autorun.brs`
+   - `config.js`
+   - the rest of the player files
+5. Ensure only one `autorun.brs` exists (no competing BSN autorun artifacts).
+6. Insert the card into the BrightSign player.
+7. Full power-cycle the player.
+8. Wait through the initial black window (~10 seconds before `Show()` is normal).
+9. Confirm the pairing / brand UI appears, then pair with the **six-character** code in the Control Panel.
+
+Do **not** put `localhost` in `cmsEndpoint`. Use a LAN IP, tunnel, or public HTTPS URL the player can reach.
 
 ## Runtime architecture
 
@@ -200,7 +233,7 @@ Practical rules:
 
 ## Deploy checklist
 
-1. Build the BrightSign bundle (`npm run build` in the BrightSign player repo), **or** download the player zip from your hosted CMS
+1. Download the BrightSign player zip (Control Panel → **Download Players → BrightSign**, or the distribution URL)
 2. Confirm `cmsEndpoint` and `orientation` in `config.js`
    - Hosted CMS download: CMS URL is usually auto-filled
    - Local testing: use your PC LAN IP — never `localhost`

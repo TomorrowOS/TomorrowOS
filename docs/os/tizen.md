@@ -2,7 +2,7 @@
 
 This page documents **how TomorrowOS works on Samsung Tizen today**, including install options, on-device setup, supported commands, playback behaviour, and deploy notes.
 
-**Current support:** TomorrowOS V1 supports **Tizen 6.5+** commercial displays only. Older generations are not supported without a separate player build or firmware path.
+**Current support:** TomorrowOS V1 supports **Tizen 6.5 and 7.0** commercial displays only. Older generations are not supported without a separate player build or firmware path.
 
 Tizen is a first-class TomorrowOS player platform alongside BrightSign. Support still depends on **display model**, **Tizen / firmware version**, and commercial signage privileges — always verify on the real panel before claiming production support.
 
@@ -10,7 +10,8 @@ Tizen is a first-class TomorrowOS player platform alongside BrightSign. Support 
 
 This page covers:
 
-- How the TomorrowOS Tizen player boots and is installed
+- How to install the TomorrowOS Tizen player on the display
+- How the TomorrowOS Tizen player boots and is configured
 - On-device orientation and CMS URL setup
 - Device identification and capabilities
 - Content policy / playback behaviour
@@ -27,7 +28,44 @@ A feature may work on one commercial panel and fail on another. Prefer:
 
 1. Check `device.info.getCapabilities`
 2. Test the real playlist on that model + firmware
-3. Only then mark the combination production-safe
+3. Only then mark the combination production-ready
+
+## Install the player
+
+Supported baseline: **Tizen 6.5 and 7.0** commercial displays.
+
+### Option A — App Management / Custom App (recommended)
+
+1. On the Samsung commercial display, open **App Management**.
+2. Choose install / add app by **Custom App** (or **App URL** — wording varies by firmware).
+3. Enter:
+
+   ```txt
+   https://tmr.sh/tizen
+   ```
+
+4. Install and launch TomorrowOS.
+5. Complete orientation + CMS URL setup (see below).
+
+### Option B — USB sideload (download from CMS)
+
+1. Open your live CMS Control Panel → **Download Players → Samsung**.
+2. Download the player package and obtain the `.wgt` and `.html`.
+3. Copy those files to the **root** of a USB stick.
+4. Insert the USB into the display and install / sideload the app (Home → Apps → USB / sideload — wording varies).
+5. Launch TomorrowOS and complete orientation + CMS URL setup.
+
+### Option C — Tizen Studio Device Manager
+
+1. Install Tizen Studio.
+2. Enable Developer Mode on the display (enter your PC’s IP).
+3. Connect in Device Manager by IP.
+4. Right-click → Install App → select the `.wgt`.
+5. Complete orientation + CMS URL setup.
+
+Signed production packages need a Samsung distributor certificate. Custom App / USB paths are fine when your environment allows them.
+
+After install, pair with the **six-character** code shown on screen (Control Panel → **Pair**).
 
 ## Runtime architecture
 
@@ -212,26 +250,23 @@ Tizen prefers the native `systemcontrol.captureScreen` path when available, with
 
 V1 targets:
 
-- Samsung commercial displays on **Tizen 6.5+**
-- Tizen web package install (URL Launcher, Device Manager, or USB sideload)
+- Samsung commercial displays on **Tizen 6.5 and 7.0**
+- Tizen web package install (Custom App URL, USB sideload, or Device Manager)
 
 ## Deploy checklist
 
-1. Build or download the Tizen player (`.wgt`)
-   - From SDK / player repo build, **or**
-   - Control Panel → **Download Players → Samsung** on your hosted CMS
-2. Install on the display:
-   - URL Launcher, or
-   - Tizen Studio Device Manager, or
-   - USB sideload
-3. On first boot, choose **orientation**
-4. Enter the **CMS URL**
+1. Install the Tizen player:
+   - **Custom App** URL `https://tmr.sh/tizen` (recommended), **or**
+   - Control Panel → **Download Players → Samsung** + USB sideload, **or**
+   - Tizen Studio Device Manager
+2. On first boot, choose **orientation**
+3. Enter the **CMS URL**
    - Hosted CMS: use that CMS’s public HTTPS origin
    - Local testing: use your PC LAN IP — never `localhost`
-5. Confirm the player reaches pairing / brand idle
-6. Pair with the 6-character code in the Control Panel
-7. Publish a small image + video playlist and confirm playback
-8. Record **model + firmware** for certification notes
+4. Confirm the player reaches pairing / brand idle
+5. Pair with the 6-character code in the Control Panel
+6. Publish a small image + video playlist and confirm playback
+7. Record **model + firmware** for certification notes
 
 ## Certification tests for Tizen
 

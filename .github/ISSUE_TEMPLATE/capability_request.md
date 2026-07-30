@@ -85,14 +85,11 @@ Select the most accurate support status.
 Which operating system does this relate to?
 
 - [ ] Samsung Tizen
-- [ ] LG webOS
 - [ ] BrightSign OS
+- [ ] LG webOS
 - [ ] Android
-- [ ] ChromeOS
 - [ ] Windows
-- [ ] Linux
-- [ ] Browser runtime
-- [ ] Other
+
 
 Details:
 

@@ -212,6 +212,8 @@ Security reports should follow the process in:
 SECURITY.md
 ```
 
+Private contact: `security@tomorrowos.org`
+
 Maintainers may privately review, fix and release security updates before public disclosure.
 
 Security-sensitive areas include:

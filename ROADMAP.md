@@ -147,12 +147,10 @@ The fourth phase is about documenting platform-specific behaviour.
 ### Target platforms
 
 - Samsung Tizen
-- LG webOS
 - BrightSign OS
-- Android
-- ChromeOS
-- Linux
-- Browser-based runtimes
+- Android (planned)
+- Windows (planned)
+- LG webOS (planned)
 
 ### Goals
 
