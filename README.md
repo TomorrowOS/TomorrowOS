@@ -151,7 +151,7 @@ You keep your source, your branding and your customer relationships. TomorrowOS 
 | [Platform support](./docs/testing/certification.md) | Version matrix and known quirks |
 | [Deployment](./docs/guides/developer-guide.md) | Self-hosting and production notes |
 | [Roadmap](./ROADMAP.md) | What's next |
-| [Changelog](./CHANGELOG.md) | What changed |
+| [Changelog](./CHANGELOG.mdx) | What changed |
 
 ## Community and support
 
@@ -159,7 +159,7 @@ Built by digital signage people, for digital signage people. If you’ve ever sp
 
 - [**Discussions**](https://github.com/tomorrowos/tomorrowos/discussions) — questions, ideas, platform war stories
 - [**GitHub Issues**](https://github.com/tomorrowos/tomorrowos/issues) — bugs and feature requests
-- [**Contributing**](./CONTRIBUTING.md) — how to get a PR merged
+- [**Contributing**](./CONTRIBUTING.mdx) — how to get a PR merged
 - [**Code of Conduct**](./CODE_OF_CONDUCT.md) — community standards
 - [**Governance**](./GOVERNANCE.md) — how decisions get made
 - [**Security**](./SECURITY.md) — report a vulnerability privately
@@ -172,7 +172,7 @@ The community contributes while maintainers protect the quality, stability and d
 
 TomorrowOS is under active development and has not yet reached 1.0.
 
-Before 1.0, APIs may change and platform support will continue to expand. Read the [changelog](./CHANGELOG.md) before deploying to production, and pin your version.
+Before 1.0, APIs may change and platform support will continue to expand. Read the [changelog](./CHANGELOG.mdx) before deploying to production, and pin your version.
 
 ## License
 
