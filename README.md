@@ -1,5 +1,3 @@
-</p>
-
 <h1 align="center">TomorrowOS</h1>
 
 <p align="center">
