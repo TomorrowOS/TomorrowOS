@@ -151,6 +151,38 @@
       "destination": "/docs/os/windows"
     },
     {
+      "source": "/docs/guides/beginners-guide.md",
+      "destination": "/docs/guides/beginners-guide"
+    },
+    {
+      "source": "/docs/guides/developer-guide.md",
+      "destination": "/docs/guides/developer-guide"
+    },
+    {
+      "source": "/docs/guides/assets-and-atomic-activation.md",
+      "destination": "/docs/guides/assets-and-atomic-activation"
+    },
+    {
+      "source": "/docs/guides/widget-zip-packages.md",
+      "destination": "/docs/guides/widget-zip-packages"
+    },
+    {
+      "source": "/docs/guides/black-gap-playback.md",
+      "destination": "/docs/guides/black-gap-playback"
+    },
+    {
+      "source": "/docs/api/overview.md",
+      "destination": "/docs/api/overview"
+    },
+    {
+      "source": "/docs/capabilities/capability-matrix.md",
+      "destination": "/docs/capabilities/capability-matrix"
+    },
+    {
+      "source": "/docs/testing/certification.md",
+      "destination": "/docs/testing/certification"
+    },
+    {
       "source": "/docs",
       "destination": "/docs/README"
     },

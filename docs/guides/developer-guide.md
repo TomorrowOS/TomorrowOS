@@ -107,8 +107,8 @@ Keep your auth, tenancy and UI. The SDK adds device sessions, pairing, playlist/
 1. Deploy a public **HTTPS** CMS URL (or a tunnel while developing).
 2. Control Panel → **Download Players** → Tizen or BrightSign.
 3. Install on the device:
-   - [Samsung Tizen](../os/tizen) — Custom App URL, USB sideload, or Device Manager
-   - [BrightSign](../os/brightsign) — zip from **your** CMS embeds `cmsEndpoint`; copy to SD card root
+   - [Samsung Tizen](../os/tizen.md) — Custom App URL, USB sideload, or Device Manager
+   - [BrightSign](../os/brightsign.md) — zip from **your** CMS embeds `cmsEndpoint`; copy to SD card root
 4. Player shows a **6-character pairing code**.
 5. Control Panel → Pair → submit the code (`POST /pairing/verify` or `tos.pairing.verify(code)`).
 6. Device appears online. Upload media, save a playlist, **Publish**.
