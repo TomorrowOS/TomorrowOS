@@ -55,16 +55,6 @@ Supported baseline: **Tizen 6.5 and 7.0** commercial displays.
 4. Insert the USB into the display and install / sideload the app (Home → Apps → USB / sideload — wording varies).
 5. Launch TomorrowOS and complete orientation + CMS URL setup.
 
-### Option C — Tizen Studio Device Manager
-
-1. Install Tizen Studio.
-2. Enable Developer Mode on the display (enter your PC’s IP).
-3. Connect in Device Manager by IP.
-4. Right-click → Install App → select the `.wgt`.
-5. Complete orientation + CMS URL setup.
-
-Signed production packages need a Samsung distributor certificate. Custom App / USB paths are fine when your environment allows them.
-
 After install, pair with the **six-character** code shown on screen (Control Panel → **Pair**).
 
 ## Runtime architecture
