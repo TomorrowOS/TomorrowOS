@@ -1,8 +1,3 @@
----
-title: "Changelog"
-sidebarTitle: "Changelog"
----
-
 # Changelog
 
 All notable changes to TomorrowOS are documented in this file.
@@ -11,20 +6,48 @@ TomorrowOS ships two versioned surfaces:
 
 | Surface | Package / artifact | Current version |
 | --- | --- | --- |
-| **TomorrowOS SDK** | `@tomorrowos/sdk` (npm) | **0.9.70** |
-| **Player app** | Tizen `.wgt` + BrightSign bundle | **1.0.0** |
+| **TomorrowOS SDK** | `@tomorrowos/sdk` (npm) | 1.1.4 |
+| **Player app** | Tizen `.wgt` + BrightSign + Windows | 1.0.0 (+ Windows player) |
 
 Versioning notes:
 
-- The **player** uses one product version across supported platforms (Tizen and BrightSign today). New platforms join the same line (for example 1.1), rather than starting a separate `webos-1.0`.
+- The **player** uses one product version across supported platforms (Tizen, BrightSign, and Windows). New platforms join the same line (for example 1.1), rather than starting a separate `webos-1.0`.
 - The **SDK** follows its own semver on npm and may move faster than the player.
-- Before SDK `1.0.0`, APIs may still change; pin versions in production.
+- Pin SDK versions in production.
+
+---
+
+## 2026-09-15 — SDK 1.1.4 + Windows player
+
+**SDK:** `@tomorrowos/sdk@1.1.4`  
+**Player:** Windows player (download from the Control Panel)
+
+### SDK 1.1.4
+
+- Optional **CMS password** (`CMS_PASSWORD`) to lock the Control Panel login
+- Replit / Vercel (v0) setup guides ask for optional CMS password during setup (Q4)
+- Password protects the Control Panel only — device WebSocket / pairing / uploads stay reachable
+
+### Windows player
+
+- TomorrowOS **Windows** player is available
+- Download it from the CMS Control Panel → **Download Players**
+
+#### Platforms
+
+| Platform | Player | Notes |
+| --- | --- | --- |
+| Samsung Tizen | 1.0.0 | Requires **Tizen 6.5 and 7.0** |
+| BrightSign | 1.0.0 | Requires **Series 3-6** |
+| Windows | 1.0.0 | Requires **Windows 10** |
+| LG webOS | — | Planned |
+| Android | — | Planned |
 
 ---
 
 ## Initial release — 2026-07-28
 
-**SDK:** `@tomorrowos/sdk@0.9.70`  
+**SDK:** `@tomorrowos/sdk@1.0.0`  
 **Player:** TomorrowOS Player **1.0.0** (Tizen + BrightSign)
 
 First public baseline of the open-source digital signage foundation: a CMS server SDK, on-device players, and a shared `device.*` command surface.
@@ -60,16 +83,6 @@ First public baseline of the open-source digital signage foundation: a CMS serve
   - `device.display.setOnOffTimer`
   - `device.telemetry.captureScreen`
 
-#### Platforms
-
-| Platform | Player | Notes |
-| --- | --- | --- |
-| Samsung Tizen | 1.0.0 | Requires **Tizen 6.5 and 7.0** |
-| BrightSign | 1.0.0 | Requires **Series 3-6** |
-| LG webOS | — | Planned |
-| Android | — | Planned |
-| Windows | — | Planned |
-
 #### Documentation
 
 - Beginners guide, developer guide, API overview
@@ -89,7 +102,7 @@ First public baseline of the open-source digital signage foundation: a CMS serve
 Treat this release as the **initial** SDK + player baseline for documentation, certification, and production pinning:
 
 ```bash
-npm install @tomorrowos/sdk@0.9.70
+npm install @tomorrowos/sdk@1.0.0
 ```
 
 Player installs report `playerVersion: "1.0.0"`.
