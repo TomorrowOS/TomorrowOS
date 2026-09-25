@@ -16,7 +16,7 @@
     {
       "id": "windows",
       "platform": "Windows",
-      "versions": "Windows 11 Pro x66",
+      "versions": "Windows 11 Pro x64",
       "status": "Supported"
     },
     {
