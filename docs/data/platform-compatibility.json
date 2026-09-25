@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "platforms": [
+    {
+      "id": "samsung-tizen",
+      "platform": "Samsung Tizen",
+      "versions": "Tizen 6.5 and 7.0",
+      "status": "Supported"
+    },
+    {
+      "id": "brightsign",
+      "platform": "BrightSign",
+      "versions": "Series 3–6",
+      "status": "Supported"
+    },
+    {
+      "id": "windows",
+      "platform": "Windows",
+      "versions": "Windows 11 Pro x64",
+      "status": "Supported"
+    },
+    {
+      "id": "android",
+      "platform": "Android",
+      "versions": "—",
+      "status": "Planned"
+    },
+    {
+      "id": "lg-webos",
+      "platform": "LG webOS",
+      "versions": "—",
+      "status": "Planned"
+    }
+  ]
+}
