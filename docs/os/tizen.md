@@ -1,4 +1,4 @@
-# Samsung Tizen
+# Samsung Tizen - supported
 
 This page documents **how TomorrowOS works on Samsung Tizen today**, including install options, on-device setup, supported commands, playback behaviour, and deploy notes.
 

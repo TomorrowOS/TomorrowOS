@@ -1,4 +1,4 @@
-# BrightSign OS
+# BrightSign OS - supported
 
 This page documents **how TomorrowOS works on BrightSign today**, including deploy requirements, supported commands, playback behaviour, and known field issues.
 

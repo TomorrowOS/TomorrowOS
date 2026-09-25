@@ -1,4 +1,4 @@
-# Windows
+# Windows - supported
 
 This page documents **how TomorrowOS works on Windows today**, including install options, on-device setup, supported commands, playback behaviour, and deploy notes.
 
