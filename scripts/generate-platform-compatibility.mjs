@@ -119,7 +119,12 @@ const existenceRows = compatibility.platforms.map((platform) => {
   return `| ${name} | ${status} |`;
 });
 
-const generatedExistenceRows = existenceRows.join("\n");
+const generatedExistenceTable = [
+  "| Piece | Status |",
+  "| --- | --- |",
+  "| `@tomorrowos/sdk` | Shipped — CMS server, pairing, playlists, media helpers, WebSocket commands |",
+  ...existenceRows,
+].join("\n");
 
 // ------------------------------------------------------------
 // Helper: replace content between markers
@@ -204,7 +209,7 @@ for (const targetFile of existenceTableFiles) {
     targetFile,
     existenceStartMarker,
     existenceEndMarker,
-    generatedExistenceRows
+    generatedExistenceTable
   );
 }
 
