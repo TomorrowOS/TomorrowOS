@@ -117,13 +117,15 @@ The Player follows a stable specification. That spec is the contract: as long as
 
 Support is version-specific and only listed here once it's confirmed on real hardware.
 
+<!-- PLATFORM_COMPATIBILITY_START -->
 | Platform | Versions | Status |
 | --- | --- | --- |
 | Samsung Tizen | Tizen 6.5 and 7.0 | Supported |
-| BrightSign | Series 3-6 | Supported |
-| LG webOS | — | Planned |
+| BrightSign | Series 3–6 | Supported |
+| Windows | Windows 11 Pro x64 | Supported |
 | Android | — | Planned |
-| Windows | — | Planned |
+| LG webOS | — | Planned |
+<!-- PLATFORM_COMPATIBILITY_END -->
 
 ## What you can build
 
