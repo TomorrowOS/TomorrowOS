@@ -193,7 +193,7 @@ See `docs/guides/assets-and-atomic-activation.md`.
 | --- | --- | --- |
 | Samsung Tizen | Tizen 6.5 and 7.0 | Supported |
 | BrightSign | Series 3–6 | Supported |
-| Windows | Windows 11 Pro x64 | Supported |
+| Windows | Windows 11 Pro x66 | Supported |
 | Android | — | Planned |
 | LG webOS | — | Planned |
 <!-- PLATFORM_COMPATIBILITY_END -->
