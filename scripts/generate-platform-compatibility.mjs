@@ -27,7 +27,6 @@ const compatibilityTableFiles = [
 
 // "What exists today" tables
 const existenceTableFiles = [
-  path.join(rootDir, "docs", "README.md"),
   path.join(rootDir, "docs", "README.mdx"),
 ];
 
