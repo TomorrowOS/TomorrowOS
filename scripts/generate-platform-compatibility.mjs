@@ -5,10 +5,13 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Project root
+// ------------------------------------------------------------
+// Paths
+// ------------------------------------------------------------
+
 const rootDir = path.resolve(__dirname, "..");
 
-// Source of truth
+// Canonical source of truth
 const compatibilityFile = path.join(
   rootDir,
   "docs",
@@ -16,17 +19,44 @@ const compatibilityFile = path.join(
   "platform-compatibility.json"
 );
 
-// Files that use the generated platform compatibility table
-const targetFiles = [
+// README-style compatibility tables
+const compatibilityTableFiles = [
   path.join(rootDir, "README.md"),
   path.join(rootDir, "docs", "guides", "beginners-guide.md"),
 ];
 
-// Markers
-const startMarker = "<!-- PLATFORM_COMPATIBILITY_START -->";
-const endMarker = "<!-- PLATFORM_COMPATIBILITY_END -->";
+// "What exists today" tables
+const existenceTableFiles = [
+  path.join(rootDir, "docs", "README.md"),
+  path.join(rootDir, "docs", "README.mdx"),
+];
 
+// ------------------------------------------------------------
+// Markers
+// ------------------------------------------------------------
+
+const compatibilityStartMarker =
+  "<!-- PLATFORM_COMPATIBILITY_START -->";
+
+const compatibilityEndMarker =
+  "<!-- PLATFORM_COMPATIBILITY_END -->";
+
+const existenceStartMarker =
+  "<!-- PLATFORM_EXISTENCE_START -->";
+
+const existenceEndMarker =
+  "<!-- PLATFORM_EXISTENCE_END -->";
+
+// ------------------------------------------------------------
 // Read compatibility dataset
+// ------------------------------------------------------------
+
+if (!fs.existsSync(compatibilityFile)) {
+  throw new Error(
+    "Could not find docs/data/platform-compatibility.json"
+  );
+}
+
 const compatibility = JSON.parse(
   fs.readFileSync(compatibilityFile, "utf8")
 );
@@ -37,13 +67,20 @@ if (!Array.isArray(compatibility.platforms)) {
   );
 }
 
-// Generate Markdown table
-const header = [
+// ------------------------------------------------------------
+// Generate standard compatibility table
+//
+// Used by:
+// - README.md
+// - docs/guides/beginners-guide.md
+// ------------------------------------------------------------
+
+const compatibilityHeader = [
   "| Platform | Versions | Status |",
   "| --- | --- | --- |",
 ];
 
-const rows = compatibility.platforms.map((platform) => {
+const compatibilityRows = compatibility.platforms.map((platform) => {
   const name = platform.platform ?? "";
   const versions = platform.versions ?? "—";
   const status = platform.status ?? "";
@@ -51,10 +88,50 @@ const rows = compatibility.platforms.map((platform) => {
   return `| ${name} | ${versions} | ${status} |`;
 });
 
-const generatedTable = [...header, ...rows].join("\n");
+const generatedCompatibilityTable = [
+  ...compatibilityHeader,
+  ...compatibilityRows,
+].join("\n");
 
-// Update each target file
-for (const targetFile of targetFiles) {
+// ------------------------------------------------------------
+// Generate "What exists today" platform rows
+//
+// The SDK row remains outside the generated markers,
+// so this script will not modify it.
+// ------------------------------------------------------------
+
+const existenceRows = compatibility.platforms.map((platform) => {
+  const name = platform.platform ?? "";
+  const versions = platform.versions ?? "—";
+  const status = platform.status ?? "";
+
+  if (name === "Samsung Tizen" && status === "Supported") {
+    return `| Samsung Tizen player | Shipped — **${versions}** |`;
+  }
+
+  if (name === "BrightSign" && status === "Supported") {
+    return `| BrightSign player | Shipped — **${versions}** |`;
+  }
+
+  if (name === "Windows" && status === "Supported") {
+    return `| Windows | ${versions} |`;
+  }
+
+  return `| ${name} | ${status} |`;
+});
+
+const generatedExistenceRows = existenceRows.join("\n");
+
+// ------------------------------------------------------------
+// Helper: replace content between markers
+// ------------------------------------------------------------
+
+function updateGeneratedSection(
+  targetFile,
+  startMarker,
+  endMarker,
+  generatedContent
+) {
   const fileName = path.relative(rootDir, targetFile);
 
   if (!fs.existsSync(targetFile)) {
@@ -80,7 +157,7 @@ for (const targetFile of targetFiles) {
 
   if (endIndex <= startIndex) {
     throw new Error(
-      `Platform compatibility markers are in the wrong order in ${fileName}`
+      `Generated section markers are in the wrong order in ${fileName}`
     );
   }
 
@@ -92,11 +169,11 @@ for (const targetFile of targetFiles) {
   const after = content.slice(endIndex);
 
   const updatedContent =
-    `${before}\n${generatedTable}\n${after}`;
+    `${before}\n${generatedContent}\n${after}`;
 
   if (updatedContent === content) {
     console.log(`${fileName} is already up to date.`);
-    continue;
+    return;
   }
 
   fs.writeFileSync(targetFile, updatedContent, "utf8");
@@ -105,3 +182,35 @@ for (const targetFile of targetFiles) {
     `Updated ${fileName} from docs/data/platform-compatibility.json`
   );
 }
+
+// ------------------------------------------------------------
+// Update README-style compatibility tables
+// ------------------------------------------------------------
+
+for (const targetFile of compatibilityTableFiles) {
+  updateGeneratedSection(
+    targetFile,
+    compatibilityStartMarker,
+    compatibilityEndMarker,
+    generatedCompatibilityTable
+  );
+}
+
+// ------------------------------------------------------------
+// Update "What exists today" tables
+// ------------------------------------------------------------
+
+for (const targetFile of existenceTableFiles) {
+  updateGeneratedSection(
+    targetFile,
+    existenceStartMarker,
+    existenceEndMarker,
+    generatedExistenceRows
+  );
+}
+
+// ------------------------------------------------------------
+// Done
+// ------------------------------------------------------------
+
+console.log("Platform compatibility generation complete.");
