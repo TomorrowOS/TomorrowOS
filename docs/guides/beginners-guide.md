@@ -188,11 +188,15 @@ See `docs/guides/assets-and-atomic-activation.md`.
 
 ## Platforms today
 
-| Platform | Status |
-| --- | --- |
-| Samsung Tizen (6.5 and 7.0) | Player app supported (app version **1.0.0**) |
-| BrightSign (Series 3-6) | Player app supported (app version **1.0.0**) |
-| LG webOS / Android / Windows | Planned |
+<!-- PLATFORM_COMPATIBILITY_START -->
+| Platform | Versions | Status |
+| --- | --- | --- |
+| Samsung Tizen | Tizen 6.5 and 7.0 | Supported |
+| BrightSign | Series 3–6 | Supported |
+| Windows | Windows 11 Pro x64 | Supported |
+| Android | — | Planned |
+| LG webOS | — | Planned |
+<!-- PLATFORM_COMPATIBILITY_END -->
 
 ## Who is TomorrowOS for?
 

@@ -16,10 +16,13 @@ const compatibilityFile = path.join(
   "platform-compatibility.json"
 );
 
-// README to update
-const readmeFile = path.join(rootDir, "README.md");
+// Files that use the generated platform compatibility table
+const targetFiles = [
+  path.join(rootDir, "README.md"),
+  path.join(rootDir, "docs", "guides", "beginners-guide.md"),
+];
 
-// Markers inside README.md
+// Markers
 const startMarker = "<!-- PLATFORM_COMPATIBILITY_START -->";
 const endMarker = "<!-- PLATFORM_COMPATIBILITY_END -->";
 
@@ -50,39 +53,55 @@ const rows = compatibility.platforms.map((platform) => {
 
 const generatedTable = [...header, ...rows].join("\n");
 
-// Read README
-const readme = fs.readFileSync(readmeFile, "utf8");
+// Update each target file
+for (const targetFile of targetFiles) {
+  const fileName = path.relative(rootDir, targetFile);
 
-const startIndex = readme.indexOf(startMarker);
-const endIndex = readme.indexOf(endMarker);
+  if (!fs.existsSync(targetFile)) {
+    throw new Error(`File not found: ${fileName}`);
+  }
 
-if (startIndex === -1) {
-  throw new Error(`Could not find ${startMarker} in README.md`);
+  const content = fs.readFileSync(targetFile, "utf8");
+
+  const startIndex = content.indexOf(startMarker);
+  const endIndex = content.indexOf(endMarker);
+
+  if (startIndex === -1) {
+    throw new Error(
+      `Could not find ${startMarker} in ${fileName}`
+    );
+  }
+
+  if (endIndex === -1) {
+    throw new Error(
+      `Could not find ${endMarker} in ${fileName}`
+    );
+  }
+
+  if (endIndex <= startIndex) {
+    throw new Error(
+      `Platform compatibility markers are in the wrong order in ${fileName}`
+    );
+  }
+
+  const before = content.slice(
+    0,
+    startIndex + startMarker.length
+  );
+
+  const after = content.slice(endIndex);
+
+  const updatedContent =
+    `${before}\n${generatedTable}\n${after}`;
+
+  if (updatedContent === content) {
+    console.log(`${fileName} is already up to date.`);
+    continue;
+  }
+
+  fs.writeFileSync(targetFile, updatedContent, "utf8");
+
+  console.log(
+    `Updated ${fileName} from docs/data/platform-compatibility.json`
+  );
 }
-
-if (endIndex === -1) {
-  throw new Error(`Could not find ${endMarker} in README.md`);
-}
-
-if (endIndex <= startIndex) {
-  throw new Error("Platform compatibility markers are in the wrong order.");
-}
-
-// Replace only the generated section
-const before = readme.slice(0, startIndex + startMarker.length);
-const after = readme.slice(endIndex);
-
-const updatedReadme =
-  `${before}\n${generatedTable}\n${after}`;
-
-// Only write when something actually changed
-if (updatedReadme === readme) {
-  console.log("Platform compatibility table is already up to date.");
-  process.exit(0);
-}
-
-fs.writeFileSync(readmeFile, updatedReadme, "utf8");
-
-console.log(
-  "Updated README.md from docs/data/platform-compatibility.json"
-);

@@ -143,8 +143,8 @@ The fourth phase is about documenting platform-specific behaviour.
 
 - Samsung Tizen
 - BrightSign OS
+- Windows
 - Android (planned)
-- Windows (planned)
 - LG webOS (planned)
 
 ### Goals

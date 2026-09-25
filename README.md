@@ -122,7 +122,7 @@ Support is version-specific and only listed here once it's confirmed on real har
 | --- | --- | --- |
 | Samsung Tizen | Tizen 6.5 and 7.0 | Supported |
 | BrightSign | Series 3–6 | Supported |
-| Windows | — | Supported |
+| Windows | Windows 11 Pro x64 | Supported |
 | Android | — | Planned |
 | LG webOS | — | Planned |
 <!-- PLATFORM_COMPATIBILITY_END -->
