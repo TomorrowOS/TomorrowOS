@@ -4,7 +4,9 @@ TomorrowOS should not mark a feature as supported unless it has been tested on a
 
 Certification testing is how TomorrowOS proves that a feature works on a specific operating system, device model, firmware version and player runtime.
 
-This page describes **how to certify against the shipped TomorrowOS surface today**: the CMS SDK, WebSocket device commands, and the Tizen / BrightSign players.
+This page describes **how to certify against the shipped TomorrowOS surface today**: the CMS SDK, WebSocket device commands, and the Samsung Tizen, BrightSign, and Windows players.
+
+Platform support status and certified platform baselines are defined by the canonical compatibility dataset at `docs/data/platform-compatibility.json`.
 
 ## Purpose
 
@@ -33,17 +35,26 @@ If it only works in some conditions, document it as partial, model-dependent or 
 
 ## Current platforms
 
-| Platform | Certification status today |
+The authoritative platform support status and certified baselines are maintained in `docs/data/platform-compatibility.json`.
+
+Current supported certification targets are:
+
+| Platform | Certified baseline |
 | --- | --- |
-| Samsung Tizen | Certify on **Tizen 6.5 and 7.0** |
-| BrightSign | Certify on **Series 3-6** |
-| LG webOS | Coming soon |
-| Android | Coming soon |
+| Samsung Tizen | Tizen 6.5 and 7.0 |
+| BrightSign | Series 3-6 |
+| Windows | Windows 11 Pro x64 |
+| Android | Planned |
+| LG webOS | Planned |
+
+Planned platforms should not be treated as certified until their status is updated in the canonical compatibility dataset.
 
 See:
 
+- `docs/data/platform-compatibility.json`
 - `docs/os/tizen.md`
 - `docs/os/brightsign.md`
+- `docs/os/windows.md`
 
 ## Commands to certify
 
@@ -116,7 +127,7 @@ Record these before calling a combination production-safe:
 
 Each certification record should include:
 
-- Operating system (`tizen` / `brightsign`)
+- Operating system (`tizen` / `brightsign` / `windows`)
 - Device manufacturer
 - Device model
 - Firmware / OS version
@@ -196,6 +207,14 @@ BrightSign notes:
 - Hosted CMS BrightSign zip usually auto-fills CMS URL
 - Never use `localhost` in `cmsEndpoint`; use LAN IP for local testing
 
+Windows notes:
+
+- Supported baseline: **Windows 11 Pro x64 / Windows Player V1**
+- Install using the TomorrowOS Windows Player installer
+- Configure the CMS URL during installation or through the on-device setup flow
+- Confirm Watchdog starts the player and the device reaches pairing / brand idle
+- Record the Windows edition/build and target hardware as part of certification
+
 ## Device tests
 
 Minimum tests:
@@ -247,7 +266,7 @@ Minimum tests:
 - Single-video loop
 - Multi-item playlist wrap
 
-See `docs/guides/black-gap-playback.md` for the shipped Tizen / BrightSign behaviour.
+See `docs/guides/black-gap-playback.md` for documented shipped platform behaviour.
 
 ## Widget tests
 
@@ -388,7 +407,7 @@ unknown
 
 Recommended workflow:
 
-1. Select OS (`tizen` or `brightsign`)
+1. Select OS (`tizen`, `brightsign`, or `windows`)
 2. Select device model
 3. Record firmware / OS version
 4. Record player + SDK versions

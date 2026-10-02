@@ -4,6 +4,8 @@ This page documents **how TomorrowOS works on Windows today**, including install
 
 **Current support:** TomorrowOS Windows Player V1 targets **Windows 11 Pro (x64)** as a native signage appliance. Windows 10, Home editions, and ARM64 are out of V1 scope unless separately certified.
 
+For the authoritative Windows support status and certified baseline, see [platform-compatibility.json](https://github.com/TomorrowOS/TomorrowOS/blob/main/docs/data/platform-compatibility.json). Certification requirements and feature-level capability guidance are documented in [certification.md](https://github.com/TomorrowOS/TomorrowOS/blob/main/docs/testing/certification.md) and [capability-matrix.md](https://github.com/TomorrowOS/TomorrowOS/blob/main/docs/capabilities/capability-matrix.md).
+
 Windows is a first-class TomorrowOS player platform alongside Samsung Tizen and BrightSign. Support still depends on **PC / SoC hardware**, **Windows edition + build**, **GPU / display drivers**, and **WebView2 Runtime** — always verify on the real machine before claiming production support.
 
 ## Purpose
@@ -384,10 +386,13 @@ Minimum tests per machine class:
 
 ## Related docs
 
-- `docs/api/overview.md` — command surface
-- `docs/guides/black-gap-playback.md` — transition behaviour
-- `docs/guides/widget-zip-packages.md` — widget zip handling
-- `docs/guides/assets-and-atomic-activation.md` — media cache / publish flow
+- [platform-compatibility.json](https://github.com/TomorrowOS/TomorrowOS/blob/main/docs/data/platform-compatibility.json) — authoritative platform support and certified baseline
+- [certification.md](https://github.com/TomorrowOS/TomorrowOS/blob/main/docs/testing/certification.md) — certification requirements and testing process
+- [capability-matrix.md](https://github.com/TomorrowOS/TomorrowOS/blob/main/docs/capabilities/capability-matrix.md) — feature-level support and limitations
+- [overview.md](https://github.com/TomorrowOS/TomorrowOS/blob/main/docs/api/overview.md) — command surface
+- [black-gap-playback.md](https://github.com/TomorrowOS/TomorrowOS/blob/main/docs/guides/black-gap-playback.md) — transition behaviour
+- [widget-zip-packages.md](https://github.com/TomorrowOS/TomorrowOS/blob/main/docs/guides/widget-zip-packages.md) — widget zip handling
+- [assets-and-atomic-activation.md](https://github.com/TomorrowOS/TomorrowOS/blob/main/docs/guides/assets-and-atomic-activation.md) — media cache / publish flow
 - Windows player repository `README.md` — build, silent flags, lab launch
 
 ## Goal

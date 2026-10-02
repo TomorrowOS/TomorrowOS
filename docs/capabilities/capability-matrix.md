@@ -1,10 +1,22 @@
 # Capability Matrix
 
-The TomorrowOS Capability Matrix is the truth layer for the project.
+The TomorrowOS Capability Matrix is the authoritative reference for **feature-level capabilities** across supported player platforms.
 
-It tracks what each operating system, device model, firmware version and runtime can safely support.
+Platform support status and certified platform baselines are defined by the canonical compatibility dataset at `docs/data/platform-compatibility.json`.
 
-TomorrowOS should never assume that every screen, media player or signage operating system can do the same thing. The matrix exists so developers can check support before using a feature.
+The capability matrix tracks what each operating system, device model, firmware version and runtime can safely support.
+
+TomorrowOS should never assume that every screen, media player or signage operating system can do the same thing. The matrix exists so developers can check feature support before using a capability.
+
+## Source of truth
+
+TomorrowOS separates platform support from feature-level capability support:
+
+- `docs/data/platform-compatibility.json` defines which platforms, versions and player releases are currently supported or planned.
+- This capability matrix defines what features those platforms can safely support and any model, firmware or runtime limitations.
+- `docs/testing/certification.md` defines how those capability claims are verified on real hardware.
+
+A platform being marked `Supported` does not mean every capability is supported on every device or firmware version.
 
 ## Why the capability matrix matters
 
@@ -12,10 +24,9 @@ Digital signage platforms behave differently across:
 
 - Samsung Tizen
 - BrightSign OS
+- Windows
 - LG webOS
 - Android
-- Windows
-
 
 Even within the same operating system, support can vary by:
 
@@ -67,6 +78,8 @@ Each feature should use one of the following statuses.
 | `requires-bridge` | Requires an agent, native bridge or platform-specific layer |
 | `unsafe` | Possible, but not recommended |
 | `unknown` | Not yet tested |
+
+These statuses describe **individual capabilities**, not the overall release status of a platform. Overall platform status is defined by `docs/data/platform-compatibility.json`.
 
 ## Capability record format
 
@@ -346,14 +359,18 @@ security.local_api_auth
 
 ## OS support table example
 
-| Feature | Tizen | webOS | BrightSign OS | Android | Browser |
+The following table illustrates the capability-matrix format. It is **not** the authoritative source for overall platform release status.
+
+| Feature | Tizen | BrightSign OS | Windows | webOS | Android |
 | --- | --- | --- | --- | --- | --- |
-| `playback.image.jpg` | supported | supported | supported | supported | supported |
-| `playback.video.h264` | firmware-dependent | model-dependent | supported | model-dependent | browser-dependent |
-| `package.zip` | requires-bridge | requires-bridge | requires-bridge | partial | partial |
-| `display.power` | model-dependent | model-dependent | requires-bridge | model-dependent | unsupported |
-| `telemetry.screenshot` | model-dependent | model-dependent | requires-bridge | partial | browser-dependent |
-| `sync.wall` | partial | partial | supported | partial | unsupported |
+| `playback.image.jpg` | supported | supported | supported | unknown | unknown |
+| `playback.video.h264` | firmware-dependent | supported | supported | unknown | unknown |
+| `package.zip` | requires-bridge | requires-bridge | requires-bridge | unknown | unknown |
+| `display.power` | model-dependent | requires-bridge | partial | unknown | unknown |
+| `telemetry.screenshot` | model-dependent | requires-bridge | supported | unknown | unknown |
+| `sync.wall` | partial | supported | unknown | unknown | unknown |
+
+These values are examples of feature-level capability states. Actual support claims should be backed by certification evidence before being treated as production-supported.
 
 ## Evidence requirements
 
@@ -370,6 +387,8 @@ A capability claim should ideally include:
 - Fallback behaviour
 - Date tested
 
+Certification evidence should follow the process described in `docs/testing/certification.md`.
+
 ## What not to do
 
 Do not mark a feature as supported just because:
@@ -383,9 +402,13 @@ Do not mark a feature as supported just because:
 
 If support is uncertain, mark it as `unknown`, `partial`, `model-dependent`, `firmware-dependent` or `requires-bridge`.
 
+Do not use this matrix to independently change the overall support status of a platform. Platform release status must remain aligned with `docs/data/platform-compatibility.json`.
+
 ## Goal
 
-The capability matrix should become the most trusted reference for what signage operating systems can actually do in the field.
+The capability matrix should be the trusted reference for **feature-level support and limitations** across TomorrowOS player platforms.
+
+The canonical compatibility dataset remains the authoritative reference for **overall platform support and certified baselines**.
 
 The value of TomorrowOS is not pretending every platform is the same.
 
