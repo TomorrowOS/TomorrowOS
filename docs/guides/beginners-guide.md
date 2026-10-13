@@ -4,7 +4,7 @@ TomorrowOS helps you build and run digital signage across different screen platf
 
 This guide is for founders, product teams, integrators, support, sales, CMS vendors, hardware partners, and anyone who wants the big picture first — without needing to read the source code.
 
-It describes **what exists today** in `@tomorrowos/sdk` and the TomorrowOS players (Samsung Tizen and BrightSign), not a future wishlist.
+It describes **what exists today** in `@tomorrowos/sdk` and the TomorrowOS players (Samsung Tizen, WIndows and BrightSign), not a future wishlist.
 
 ## Requirements
 
@@ -31,7 +31,7 @@ A restaurant menu board, retail display, airport screen or office lobby may run 
 TomorrowOS gives you:
 
 1. **A CMS server SDK** (`@tomorrowos/sdk`) — you own the CMS; the SDK handles pairing, device sessions, playlists, media helpers and the wire protocol
-2. **Player apps** — run on the screen (Tizen, BrightSign today) and speak that protocol
+2. **Player apps** — run on the screen (Tizen, Windows and BrightSign today) and speak that protocol
 3. **A shared command language** — dotted methods such as `device.content.setPolicy` and `device.info.getCapabilities`
 
 You build or brand the Control Panel. Screens talk to **your** server. There is no required TomorrowOS cloud.
@@ -55,7 +55,7 @@ TomorrowOS standardises the **CMS ↔ player contract** and keeps platform detai
 ### What it is
 
 - An **open-source SDK** for building your own digital signage CMS (`@tomorrowos/sdk`, Apache 2.0)
-- A **player runtime** for commercial screens (Tizen and BrightSign players today)
+- A **player runtime** for commercial screens (Tizen, Windows and BrightSign players today)
 - A **WebSocket + HTTP** protocol so the CMS can pair devices, publish playlists, reboot, capture screenshots, and more
 - Starter Control Panel templates and setup guides for **Replit** and **Vercel / v0**
 - Documentation for capabilities, black-gap playback, assets and certification
