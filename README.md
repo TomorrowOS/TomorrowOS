@@ -88,25 +88,25 @@ Your CMS must be reachable from the panel (public HTTPS in production, or a LAN 
 ## How it works
 
 ```
-┌─────────────────────────────────────────────────┐
-│  Your product                                   │
-│  CMS · App · Workflow · Data                    │
-└─────────────────────────┬───────────────────────┘
+┌───────────────────────────────────────────────────┐
+│  Your product                                     │
+│  CMS · App · Workflow · Data                      │
+└─────────────────────────┬─────────────────────────┘
                           │
-┌─────────────────────────▼───────────────────────┐
-│  TomorrowOS Server SDK and APIs                 │
-│  Devices · Content · Policies · Commands        │
-└─────────────────────────┬───────────────────────┘
+┌─────────────────────────▼─────────────────────────┐
+│  TomorrowOS Server SDK and APIs                   │
+│  Devices · Content · Policies · Commands          │
+└─────────────────────────┬─────────────────────────┘
                           │
-┌─────────────────────────▼───────────────────────┐
-│  TomorrowOS Player Runtime                      │
-│  Playback · Storage · Offline operation         │
-└─────────────────────────┬───────────────────────┘
+┌─────────────────────────▼─────────────────────────┐
+│  TomorrowOS Player Runtime                        │
+│  Playback · Storage · Offline operation           │
+└─────────────────────────┬─────────────────────────┘
                           │
-┌─────────────────────────▼───────────────────────┐
-│  Supported screen platforms                     │
-│  Samsung Tizen · BrightSign                     │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────▼─────────────────────────┐
+│  Supported screen platforms                       │
+│  Samsung Tizen · BrightSign · Windows 11 Pro x64  │
+└───────────────────────────────────────────────────┘
 ```
 
 Your application decides **what** should happen. TomorrowOS handles **how** it happens across every supported screen environment.
