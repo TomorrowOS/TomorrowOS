@@ -6,7 +6,7 @@ TomorrowOS ships two versioned surfaces:
 
 | Surface | Package / artifact | Current version |
 | --- | --- | --- |
-| **TomorrowOS SDK** | `@tomorrowos/sdk` (npm) | 1.1.4 |
+| **TomorrowOS SDK** | `@tomorrowos/sdk` (npm) | 1.1.8 |
 | **Player app** | Tizen `.wgt` + BrightSign + Windows | 1.0.0 (+ Windows player) |
 
 Versioning notes:
@@ -14,6 +14,47 @@ Versioning notes:
 - The **player** uses one product version across supported platforms (Tizen, BrightSign, and Windows). New platforms join the same line (for example 1.1), rather than starting a separate `webos-1.0`.
 - The **SDK** follows its own semver on npm and may move faster than the player.
 - Pin SDK versions in production.
+
+---
+
+## 2026-11-09 — SDK 1.1.8
+
+**SDK:** `@tomorrowos/sdk@1.1.8`
+
+### SDK 1.1.8
+
+- Screen tags and per-screen references now live in the CMS database (SQLite, Postgres, and the memory store)
+- An existing `screen-tags.json` or `screen-references.json` is imported once, then renamed to `*.json.imported`
+- Store export, import, and migration include tags and references
+
+---
+
+## 2026-11-07 — SDK 1.1.7
+
+**SDK:** `@tomorrowos/sdk@1.1.7`
+
+### SDK 1.1.7
+
+- Per-screen references: string key/value pairs for one screen, up to 32 keys
+- Each `setPolicy` for that screen includes its references. The shared playlist is unchanged
+- HTTP routes: `GET /screen-references`, `GET` and `PUT /device/:id/references`, `DELETE /device/:id/references/:key`
+- Saving or removing a reference pushes the latest policy to that screen
+- The default Control Panel does not edit references; a product UI calls these routes
+
+---
+
+## 2026-10-31 — SDK 1.1.6
+
+**SDK:** `@tomorrowos/sdk@1.1.6`
+
+### SDK 1.1.6
+
+- Screen tags. A playlist item can require `any`, `all`, `notAny`, or `notAll` of a screen’s tags. No rule means every screen
+- Per-item schedule: start and end date, start and end time, and weekdays (Monday through Sunday). No schedule means all the time
+- Tag rules and item schedules are removed before the player receives the policy
+- Control Panel: manage tags, filter screens by tag, and set a rule and schedule on each playlist item
+- Delete a playlist that is not assigned to a screen
+- HTTP routes for the tag catalog, a screen’s tags, and a playback preview of what that screen will play
 
 ---
 
@@ -39,7 +80,7 @@ Versioning notes:
 | --- | --- | --- |
 | Samsung Tizen | 1.0.0 | Requires **Tizen 6.5 and 7.0** |
 | BrightSign | 1.0.0 | Requires **Series 3-6** |
-| Windows | 1.0.0 | Requires **Windows 10** |
+| Windows | 1.0.0 | Requires **Windows 11 Pro x64** |
 | LG webOS | — | Planned |
 | Android | — | Planned |
 
