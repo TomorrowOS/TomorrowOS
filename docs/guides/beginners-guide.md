@@ -183,7 +183,7 @@ See `docs/guides/assets-and-atomic-activation.md`.
 | --- | --- |
 | Pairing code | Short code on screen; CMS verifies it and links the device |
 | `device.ping` / `device.pong` | Heartbeat so the CMS knows the screen is online (not an HTTP “ping API” you call) |
-| `device.log` | Player sends log lines to the CMS (read via `GET /device/{id}/logs`) |
+| `device.log` | Optional. A player may send log lines to the CMS (read via `GET /device/{id}/logs`). A player that never sends them still works. |
 | Screenshot | CMS calls `POST /device/{id}/screenshot` → wire method `device.telemetry.captureScreen` |
 
 ## Platforms today

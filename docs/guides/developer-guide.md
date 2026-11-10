@@ -303,12 +303,17 @@ tos.on("device.online", async ({ deviceId }) => {
 })
 ```
 
-Wire / events you will see:
+WebSocket messages:
 
 ```txt
 device.hello
 device.resume
 device.ping / device.pong
+```
+
+In-process SDK events (`tos.on`), not WebSocket messages:
+
+```txt
 device.online / device.offline / device.heartbeat
 ```
 
@@ -365,7 +370,7 @@ Wire method:
 device.telemetry.captureScreen
 ```
 
-Player logs uplink as `device.log`; read them with `GET /device/{id}/logs`.
+A player may send log lines as `device.log`. A player that never sends them still works. When logs arrive, read them with `GET /device/{id}/logs`.
 
 ## Network / presence
 
@@ -374,8 +379,9 @@ No separate `device.network.*` command set.
 Use:
 
 ```ts
-tos.listDevices() // online / offline
-// plus device.ping / pong and online / offline events
+tos.listDevices() // online / offline state
+device.ping / device.pong // WebSocket heartbeat
+// device.online / device.offline are in-process SDK events, not WebSocket messages
 ```
 
 ## Shipped device command surface
@@ -390,11 +396,11 @@ tos.listDevices() // online / offline
 | `device.display.setOnOffTimer` | Daily on/off (mute) schedule |
 | `device.telemetry.captureScreen` | Screenshot |
 
-Uplink-only (player → CMS): `device.ping`, `device.log`, `device.hello`, `device.resume`, …
+Uplink-only (player → CMS): `device.ping`, `device.hello`, `device.resume`. `device.log` is optional.
 
 ## Error handling
 
-Prefer structured results from `sendCommand` (ok / error / unsupported) and CMS publish verification failures before policy push.
+Prefer structured `command.result` statuses from `sendCommand` (`success`, `failed`, or `accepted`) and CMS publish verification failures before policy push.
 
 Common field / support issues:
 

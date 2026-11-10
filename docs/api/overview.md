@@ -307,10 +307,12 @@ tos.pairing.verify(code)
 tos.pairing.unpair(deviceId)
 tos.pushLatestPolicyToDevice(deviceId)
 
-# Device / CMS wire events
+# WebSocket messages
 device.hello
 device.resume
 device.ping / device.pong
+
+# In-process SDK events (tos.on), not WebSocket messages
 device.online
 device.offline
 device.heartbeat
@@ -384,7 +386,9 @@ Current surface:
 
 ```ts
 tos.listDevices()              # includes online / offline state
-device.ping / device.pong      # heartbeat
+device.ping / device.pong      # WebSocket heartbeat
+
+# In-process SDK events (tos.on), not WebSocket messages
 device.online
 device.offline
 device.heartbeat
