@@ -170,9 +170,27 @@ The community contributes while maintainers protect the quality, stability and d
 
 ## Project status
 
-TomorrowOS is under active development and has not yet reached 1.0.
+TomorrowOS is an actively developed open-source digital signage foundation.
 
-Before 1.0, APIs may change and platform support will continue to expand. Read the [changelog](./CHANGELOG.mdx) before deploying to production, and pin your version.
+**Current releases**
+
+| Component | Version | Status |
+| --- | --- | --- |
+| Server SDK | 1.1.8 | Released |
+| Player — Samsung Tizen | 1.0.0 | Supported |
+| Player — BrightSign | 1.0.0 | Supported |
+| Player — Windows | 1.0.0 | Supported |
+| Application Runtime | Developer preview | In development |
+| Android / NovaStar | — | In development / validation |
+| LG webOS | — | Planned |
+
+Platform support is model- and firmware-dependent. Check the compatibility documentation before production deployment.
+
+The SDK, Player and Application Runtime have separate development lifecycles. APIs and capabilities may continue to evolve.
+
+We welcome developers, CMS providers, hardware manufacturers and integrators to help shape the project.
+
+Read the [changelog](./CHANGELOG.mdx) before deploying to production, and pin your version.
 
 ## License
 
